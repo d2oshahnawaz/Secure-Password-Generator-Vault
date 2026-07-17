@@ -1,0 +1,10 @@
+{
+    "salt": "6d205c52b5c3bb624462b1016bf7f18d",
+    "hash": "12de2800fcf9a559a716fde28bfdaa54a5a13f1c77807caa7937a630b4c84593",
+    "recovery_key": "C9A3-5D88-913B-9AA4",
+    "security_question": "What city were you born in?",
+    "security_answer_salt": "30535c7aae7d31a8628c9923b78cbee6",
+    "security_answer_hash": "bdc6b2182406a69ca2ac4f3c4535c5453daaf55e6d3ea356d3130142c951e617",
+    "created_at": "2026-07-17T18:11:15",
+    "last_changed": "2026-07-17T18:11:15"
+}
