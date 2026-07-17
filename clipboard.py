@@ -1,43 +1,11 @@
 # =====================================================
 # CLIPBOARD UTILITIES
-# Version 4.0 Professional
+# Version 5.0 Professional
+# Browser Clipboard (Streamlit Cloud Compatible)
 # =====================================================
 
-try:
-    import pyperclip
-except ImportError:
-    pyperclip = None
-
-import streamlit as st
-
-
-# =====================================================
-# COPY PASSWORD
-# =====================================================
-
-def copy_password(password):
-    """
-    Copy password to system clipboard.
-
-    Returns
-    -------
-    bool
-        True if copied successfully,
-        otherwise False.
-    """
-
-    if pyperclip is None:
-        return False
-
-    try:
-
-        pyperclip.copy(str(password))
-
-        return True
-
-    except Exception:
-
-        return False
+import html
+import streamlit.components.v1 as components
 
 
 # =====================================================
@@ -46,28 +14,145 @@ def copy_password(password):
 
 def render_copy_button(password, key):
 
-    if st.button(
-        "Copy Password",
-        key=f"copy_{key}",
-        use_container_width=True
-    ):
+    password = html.escape(str(password))
 
-        if copy_password(password):
+    components.html(
+        f"""
+        <!DOCTYPE html>
+        <html>
 
-            st.success(
-                "Password copied successfully."
-            )
+        <head>
 
-        else:
+            <!-- Bootstrap Icons -->
+            <link
+                rel="stylesheet"
+                href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
-            st.code(
-                password,
-                language="text"
-            )
+            <style>
 
-            st.info(
-                "Clipboard is unavailable. Copy the password manually."
-            )
+                body {{
+                    margin:0;
+                    padding:0;
+                    background:transparent;
+                    font-family:Arial, sans-serif;
+                }}
+
+                .container {{
+                    display:flex;
+                    gap:12px;
+                    align-items:center;
+                }}
+
+                input {{
+                    flex:1;
+                    padding:12px;
+                    border-radius:8px;
+                    border:1px solid #444;
+                    background:#1e1e1e;
+                    color:white;
+                    font-size:15px;
+                    outline:none;
+                }}
+
+                button {{
+                    display:flex;
+                    align-items:center;
+                    justify-content:center;
+                    gap:8px;
+                    padding:12px 18px;
+                    border:none;
+                    border-radius:8px;
+                    cursor:pointer;
+                    background:#00ACC1;
+                    color:white;
+                    font-weight:600;
+                    transition:.2s;
+                }}
+
+                button:hover {{
+                    background:#0097A7;
+                }}
+
+                #msg {{
+                    margin-left:10px;
+                    color:#4CAF50;
+                    font-size:14px;
+                    display:none;
+                    font-weight:600;
+                }}
+
+            </style>
+
+        </head>
+
+        <body>
+
+            <div class="container">
+
+                <input
+                    id="pwd_{key}"
+                    type="text"
+                    value="{password}"
+                    readonly>
+
+                <button onclick="copyPassword()">
+
+                    <i class="bi bi-copy"></i>
+
+                    Copy
+
+                </button>
+
+                <span id="msg">
+
+                    Copied
+
+                </span>
+
+            </div>
+
+            <script>
+
+                async function copyPassword() {{
+
+                    const txt =
+                        document.getElementById("pwd_{key}");
+
+                    try {{
+
+                        await navigator.clipboard.writeText(txt.value);
+
+                        const msg =
+                            document.getElementById("msg");
+
+                        msg.style.display = "inline";
+
+                        setTimeout(() => {{
+
+                            msg.style.display = "none";
+
+                        }},2000);
+
+                    }}
+
+                    catch(err) {{
+
+                        txt.select();
+
+                        document.execCommand("copy");
+
+                    }}
+
+                }}
+
+            </script>
+
+        </body>
+
+        </html>
+        """,
+        height=70,
+    )
 
 
 # =====================================================
@@ -76,20 +161,4 @@ def render_copy_button(password, key):
 
 def render_copy_text(text, key):
 
-    if st.button(
-        "Copy",
-        key=f"text_{key}",
-        use_container_width=True
-    ):
-
-        if copy_password(text):
-
-            st.success("Copied successfully.")
-
-        else:
-
-            st.code(text)
-
-            st.info(
-                "Clipboard unavailable."
-            )
+    render_copy_button(text, key)

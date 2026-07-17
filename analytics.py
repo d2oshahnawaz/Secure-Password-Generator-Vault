@@ -3,6 +3,8 @@
 # Version 4.0 Professional
 # =====================================================
 
+# cspell:ignore nbins bargap textposition
+
 # -----------------------------------------------------
 # Third-Party Libraries
 # -----------------------------------------------------
@@ -34,12 +36,10 @@ def mask_password(password: str) -> str:
 
     Example
     -------
-    Mohd@123456
+    Mask@123456
         ↓
     Mo*******56
     """
-
-    password = str(password)
 
     if len(password) <= 4:
         return "*" * len(password)
@@ -49,6 +49,38 @@ def mask_password(password: str) -> str:
         + "*" * (len(password) - 4)
         + password[-2:]
     )
+
+
+def render_plotly_chart(
+    fig,
+    *,
+    legend_title_text: str | None = None,
+    xaxis_title: str | None = None,
+    yaxis_title: str | None = None,
+    bargap: float | None = None,
+) -> None:
+    """Render a Plotly figure with the dashboard's default layout."""
+
+    layout_updates = {
+        "template": "plotly_white",
+        "margin": dict(l=20, r=20, t=50, b=20),
+    }
+
+    if legend_title_text is not None:
+        layout_updates["legend_title_text"] = legend_title_text
+
+    if xaxis_title is not None:
+        layout_updates["xaxis_title"] = xaxis_title
+
+    if yaxis_title is not None:
+        layout_updates["yaxis_title"] = yaxis_title
+
+    if bargap is not None:
+        layout_updates["bargap"] = bargap
+
+    fig.update_layout(**layout_updates)
+
+    st.plotly_chart(fig, use_container_width=True)
 
 
 # =====================================================
@@ -447,26 +479,11 @@ def show_dashboard():
 
         )
 
-        fig.update_layout(
-
-            template="plotly_white",
-
-            legend_title_text="Strength",
-
-            margin=dict(
-                l=20,
-                r=20,
-                t=50,
-                b=20
-            )
-
-        )
-
-        st.plotly_chart(
+        render_plotly_chart(
 
             fig,
 
-            use_container_width=True
+            legend_title_text="Strength",
 
         )
 
@@ -484,32 +501,13 @@ def show_dashboard():
 
             x="Entropy",
 
-            nbins=20,
-
             title="Password Entropy"
 
         )
 
-        fig.update_layout(
-
-            template="plotly_white",
-
-            bargap=0.10,
-
-            margin=dict(
-                l=20,
-                r=20,
-                t=50,
-                b=20
-            )
-
-        )
-
-        st.plotly_chart(
+        render_plotly_chart(
 
             fig,
-
-            use_container_width=True
 
         )
 
@@ -533,26 +531,11 @@ def show_dashboard():
 
         )
 
-        fig.update_layout(
-
-            template="plotly_white",
-
-            bargap=0.10,
-
-            margin=dict(
-                l=20,
-                r=20,
-                t=50,
-                b=20
-            )
-
-        )
-
-        st.plotly_chart(
+        render_plotly_chart(
 
             fig,
 
-            use_container_width=True
+            bargap=0.10,
 
         )
 
@@ -562,29 +545,27 @@ def show_dashboard():
     # PASSWORD GENERATION TIMELINE
     # =====================================================
 
-    if history_df is not None:
+    if history_df is not None and "Created" in history_df.columns:
+    
+        timeline = (
 
-        if "Created" in history_df.columns:
+            history_df
 
-            timeline = (
+            .dropna(subset=["Created"])
 
-                history_df
+            .groupby(
 
-                .dropna(subset=["Created"])
-
-                .groupby(
-
-                    history_df["Created"].dt.date
-
-                )
-
-                .size()
-
-                .reset_index(name="Count")
+                history_df["Created"].dt.date
 
             )
 
-            if len(timeline) > 1:
+            .size()
+
+            .reset_index(name="Count")
+
+        )
+
+        if len(timeline) > 1:
 
                 st.subheader(
                     "Password Generation Timeline"
@@ -604,28 +585,13 @@ def show_dashboard():
 
                 )
 
-                fig.update_layout(
+                render_plotly_chart(
 
-                    template="plotly_white",
+                    fig,
 
                     xaxis_title="Date",
 
                     yaxis_title="Passwords",
-
-                    margin=dict(
-                        l=20,
-                        r=20,
-                        t=50,
-                        b=20
-                    )
-
-                )
-
-                st.plotly_chart(
-
-                    fig,
-
-                    use_container_width=True
 
                 )
 
@@ -663,24 +629,9 @@ def show_dashboard():
 
             )
 
-            fig.update_layout(
-
-                template="plotly_white",
-
-                margin=dict(
-                    l=20,
-                    r=20,
-                    t=50,
-                    b=20
-                )
-
-            )
-
-            st.plotly_chart(
+            render_plotly_chart(
 
                 fig,
-
-                use_container_width=True
 
             )
 
@@ -710,28 +661,13 @@ def show_dashboard():
 
             )
 
-            fig.update_layout(
+            render_plotly_chart(
 
-                template="plotly_white",
+                fig,
 
                 xaxis_title="Category",
 
                 yaxis_title="Passwords",
-
-                margin=dict(
-                    l=20,
-                    r=20,
-                    t=50,
-                    b=20
-                )
-
-            )
-
-            st.plotly_chart(
-
-                fig,
-
-                use_container_width=True
 
             )
 
@@ -777,24 +713,9 @@ def show_dashboard():
 
     )
 
-    fig.update_layout(
-
-        template="plotly_white",
-
-        margin=dict(
-            l=20,
-            r=20,
-            t=50,
-            b=20
-        )
-
-    )
-
-    st.plotly_chart(
+    render_plotly_chart(
 
         fig,
-
-        use_container_width=True
 
     )
 
@@ -852,28 +773,13 @@ def show_dashboard():
 
         )
 
-        fig.update_layout(
+        render_plotly_chart(
 
-            template="plotly_white",
+            fig,
 
             xaxis_title="Website",
 
             yaxis_title="Passwords",
-
-            margin=dict(
-                l=20,
-                r=20,
-                t=50,
-                b=20
-            )
-
-        )
-
-        st.plotly_chart(
-
-            fig,
-
-            use_container_width=True
 
         )
 
