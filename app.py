@@ -1,7 +1,7 @@
 # =====================================================
 # APP
-# Version 4.2 Professional
-# Part 1 / 4
+# Version 5.0 Professional
+# Part 1A
 # =====================================================
 
 # =====================================================
@@ -13,26 +13,19 @@ import secrets
 
 import streamlit as st
 
-try:
-    import pyperclip
-except ImportError:
-    pyperclip = None
-
 # =====================================================
 # PAGE CONFIG
-# (Must be the first Streamlit command)
+# (Must be first Streamlit command)
 # =====================================================
 
 st.set_page_config(
-
+    
     page_title="Smart Password Generator",
-
+    
     page_icon="assets/favicon.png",
-
+    
     layout="wide",
-
-    initial_sidebar_state="expanded"
-
+    initial_sidebar_state="expanded",
 )
 
 # =====================================================
@@ -41,28 +34,26 @@ st.set_page_config(
 
 def load_css():
 
-    css_file = Path("style.css")
+    css_path = Path("style.css")
 
-    if css_file.exists():
+    if css_path.exists():
 
         st.markdown(
-
-            f"<style>{css_file.read_text(encoding='utf-8')}</style>",
-
-            unsafe_allow_html=True
-
+            f"<style>{css_path.read_text(encoding='utf-8')}</style>",
+            unsafe_allow_html=True,
         )
 
 
 load_css()
 
 # =====================================================
-# BOOTSTRAP ICONS
+# LOAD BOOTSTRAP ICONS
 # =====================================================
 
 st.markdown(
     """
-<link rel="stylesheet"
+<link
+rel="stylesheet"
 href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 """,
     unsafe_allow_html=True,
@@ -90,26 +81,28 @@ from breach import show_breach_check
 from analytics import show_dashboard
 from vault import show_vault
 
+# Browser Clipboard API
+from clipboard import render_copy_button
+
 from database import (
-
     save_password,
-
+    
     clear_history,
-
+    
     vault_count,
-
+    
     favorite_count,
-
+    
 )
 
 from ui import (
-
+    
     show_history,
-
+    
     show_export,
-
+    
     show_footer,
-
+    
 )
 
 # =====================================================
@@ -120,6 +113,8 @@ initialize_session()
 
 # =====================================================
 # SIDEBAR
+# Version 5.0 Professional
+# Part 1B
 # =====================================================
 
 settings = sidebar()
@@ -128,31 +123,45 @@ settings = sidebar()
 # USER SETTINGS
 # =====================================================
 
-password_length = settings["password_length"]
+password_length = settings.get("password_length", 16)
 
-password_count = settings["password_count"]
+password_count = settings.get("password_count", 5)
 
-use_upper = settings["use_upper"]
+use_upper = settings.get("use_upper", True)
 
-use_lower = settings["use_lower"]
+use_lower = settings.get("use_lower", True)
 
-use_numbers = settings["use_numbers"]
+use_numbers = settings.get("use_numbers", True)
 
-use_symbols = settings["use_symbols"]
+use_symbols = settings.get("use_symbols", True)
 
-avoid_similar = settings["avoid_similar"]
+avoid_similar = settings.get("avoid_similar", False)
 
-exclude_chars = settings["exclude_chars"]
+exclude_chars = settings.get("exclude_chars", "")
 
-template_type = settings["template_type"]
+template_type = settings.get("template_type", "Random")
 
-memorable = settings["memorable"]
+memorable = settings.get("memorable", False)
+
+# =====================================================
+# SESSION DEFAULTS
+# =====================================================
+
+st.session_state.setdefault("generated", False)
+
+st.session_state.setdefault("passwords", [])
+
+st.session_state.setdefault("page", "generator")
+
+st.session_state.setdefault("show_favorites", False)
+
+st.session_state.setdefault("show_expired", False)
 
 # =====================================================
 # MAINTENANCE
 # =====================================================
 
-if settings["clear_history"]:
+if settings.get("clear_history", False):
 
     clear_history()
 
@@ -164,15 +173,11 @@ if settings["clear_history"]:
 # PAGE ROUTING
 # =====================================================
 
-page = st.session_state.get(
+page = st.session_state.get("page", "generator")
 
-    "page",
-
-    "generator"
-
-)
-
-# ---------------- Dashboard ----------------
+# -----------------------------------------------------
+# DASHBOARD
+# -----------------------------------------------------
 
 if page == "dashboard":
 
@@ -180,39 +185,50 @@ if page == "dashboard":
 
     st.stop()
 
-# ---------------- Vault ----------------
+# -----------------------------------------------------
+# PASSWORD VAULT
+# -----------------------------------------------------
 
 elif page == "vault":
 
-    show_vault()
-
-    st.stop()
-
-# ---------------- Favorites ----------------
-
-elif page == "favorites":
-
-    st.session_state.show_favorites = True
-
+    st.session_state.show_favorites = False
     st.session_state.show_expired = False
 
     show_vault()
 
     st.stop()
 
-# ---------------- Expired ----------------
+# -----------------------------------------------------
+# FAVORITES
+# -----------------------------------------------------
+
+elif page == "favorites":
+
+    st.session_state.show_favorites = True
+    
+    st.session_state.show_expired = False
+
+    show_vault()
+
+    st.stop()
+
+# -----------------------------------------------------
+# EXPIRED PASSWORDS
+# -----------------------------------------------------
 
 elif page == "expired":
 
     st.session_state.show_expired = True
-
+    
     st.session_state.show_favorites = False
 
     show_vault()
 
     st.stop()
 
-# ---------------- History ----------------
+# -----------------------------------------------------
+# PASSWORD HISTORY
+# -----------------------------------------------------
 
 elif page == "history":
 
@@ -225,12 +241,19 @@ elif page == "history":
     st.stop()
 
 # =====================================================
-# GENERATOR PAGE
-# Version 4.2 Professional
-# Part 2 / 4
+# GENERATOR PAGE STARTS HERE
 # =====================================================
 
-left, right = st.columns([2, 1], gap="large")
+left, right = st.columns(
+    [2, 1],
+    gap="large",
+)
+
+# =====================================================
+# GENERATOR PAGE
+# Version 5.0 Professional
+# Part 2A-1
+# =====================================================
 
 # =====================================================
 # LEFT PANEL
@@ -238,89 +261,142 @@ left, right = st.columns([2, 1], gap="large")
 
 with left:
 
-    st.header("Generate Secure Password")
+    st.markdown(
+        """
+<h2>
+<i class="bi bi-shield-lock-fill"></i>
+Generate Secure Password
+</h2>
+""",
+        unsafe_allow_html=True,
+    )
+
+    st.write(
+        "Create strong and secure passwords using your own keywords and custom settings."
+    )
+
+    st.divider()
+
+    # -------------------------------------------------
+    # USER INPUT
+    # -------------------------------------------------
 
     user_input = st.text_input(
-
-        "Enter your password idea",
-
-        placeholder="Example: Mohd123, BankPassword, OfficeLogin..."
-
+        label="Password Idea",
+        placeholder="Example: Mohd123, BankPassword, OfficeLogin...",
+        help="Enter any word, phrase or combination that you want to use as the base.",
     )
 
     extra_letters = ""
-
+    
     extra_numbers = ""
 
     # -------------------------------------------------
-    # Ask for missing letters
+    # LETTER VALIDATION
     # -------------------------------------------------
 
-    if user_input:
+    if user_input and not any(ch.isalpha() for ch in user_input):
 
-        if not any(char.isalpha() for char in user_input):
+        st.warning("No alphabetic characters detected.")
 
-            extra_letters = st.text_input(
-
-                "No letters detected. Enter letters"
-
-            )
-
-        if not any(char.isdigit() for char in user_input):
-
-            extra_numbers = st.text_input(
-
-                "No numbers detected. Enter numbers"
-
-            )
+        extra_letters = st.text_input(
+            "Additional Letters",
+            placeholder="Example: ABC, Tech, Secure",
+        )
 
     # -------------------------------------------------
-    # Generate Button
+    # NUMBER VALIDATION
+    # -------------------------------------------------
+
+    if user_input and not any(ch.isdigit() for ch in user_input):
+
+        st.warning("No numeric characters detected.")
+
+        extra_numbers = st.text_input(
+            "Additional Numbers",
+            placeholder="Example: 123, 2026, 786",
+        )
+
+    st.divider()
+
+    # -------------------------------------------------
+    # GENERATE BUTTON
     # -------------------------------------------------
 
     generate_clicked = st.button(
-
+        
         "Generate Secure Password",
-
+        
         key="generate_password",
-
+        
         type="primary",
-
-        use_container_width=True
-
+        
+        use_container_width=True,
     )
 
     # -------------------------------------------------
-    # Password Generation
+    # PASSWORD GENERATION
     # -------------------------------------------------
 
     if generate_clicked:
 
-        passwords = generate_passwords(
-            user_input=user_input,
-            extra_letters=extra_letters,
-            extra_numbers=extra_numbers,
+        # ---------------------------------------------
+        # INPUT VALIDATION
+        # ---------------------------------------------
 
-            length=password_length,
-            count=password_count,
+        if user_input:
 
-            use_upper=use_upper,
-            use_lower=use_lower,
-            use_numbers=use_numbers,
-            use_symbols=use_symbols,
-            avoid_similar=avoid_similar,
-            exclude_chars=exclude_chars,
-            template_type=template_type,
-            memorable=memorable,
-        )
+            if (
+                not any(ch.isalpha() for ch in user_input)
+                and not extra_letters.strip()
+            ):
+                st.error(
+                    "Please enter at least one alphabetic character."
+                )
+                st.stop()
+
+            if (
+                not any(ch.isdigit() for ch in user_input)
+                and not extra_numbers.strip()
+            ):
+                st.error(
+                    "Please enter at least one numeric character."
+                )
+                st.stop()
+
+        with st.spinner("Generating passwords..."):
+
+            passwords = generate_passwords(
+                user_input=user_input,
+                extra_letters=extra_letters,
+                extra_numbers=extra_numbers,
+                length=password_length,
+                count=password_count,
+                use_upper=use_upper,
+                use_lower=use_lower,
+                use_numbers=use_numbers,
+                use_symbols=use_symbols,
+                avoid_similar=avoid_similar,
+                exclude_chars=exclude_chars,
+                template_type=template_type,
+                memorable=memorable,
+            )
 
         st.session_state.passwords = passwords
+        st.session_state.generated = True
+        
+                # -------------------------------------------------
+        # STORE GENERATED PASSWORDS
+        # -------------------------------------------------
 
+        st.session_state.passwords = passwords
         st.session_state.generated = True
 
-        # ---------------------------------------------
-        # Save Password History
-        # ---------------------------------------------
+        # -------------------------------------------------
+        # SAVE PASSWORD HISTORY
+        # -------------------------------------------------
+
+        saved_count = 0
 
         for password in passwords:
 
@@ -328,26 +404,92 @@ with left:
 
             entropy = calculate_entropy(password)
 
-            save_password(
+            try:
 
-                password=password,
+                save_password(
+                    password=password,
+                    strength=strength["label"],
+                    entropy=entropy,
+                    crack_time=crack_time(entropy),
+                )
 
-                strength=strength["label"],
+                saved_count += 1
 
-                entropy=entropy,
+            except Exception as error:
 
-                crack_time=crack_time(entropy)
+                st.warning(
+                    f"Unable to save password history: {error}"
+                )
 
-            )
+        # -------------------------------------------------
+        # GENERATION SUMMARY
+        # -------------------------------------------------
 
         st.success(
+            f"{len(passwords)} secure password(s) generated successfully."
+        )
 
-            f"{len(passwords)} password(s) generated successfully."
+        summary_col1, summary_col2, summary_col3 = st.columns(3)
 
+        with summary_col1:
+
+            st.metric(
+                label="Passwords",
+                value=len(passwords),
+            )
+
+        with summary_col2:
+
+            st.metric(
+                label="Saved",
+                value=saved_count,
+            )
+
+        with summary_col3:
+
+            st.metric(
+                label="Template",
+                value=template_type,
+            )
+
+        st.divider()
+
+        # -------------------------------------------------
+        # SECURITY INFORMATION
+        # -------------------------------------------------
+
+        st.markdown(
+            """
+<div class="card">
+
+<h4>
+<i class="bi bi-shield-check"></i>
+Generation Summary
+</h4>
+
+<ul>
+
+<li>Passwords generated using the selected security settings.</li>
+
+<li>Strength analysis will be displayed for every generated password.</li>
+
+<li>Entropy and crack-time estimation are calculated automatically.</li>
+
+<li>Generated passwords are available in Password History.</li>
+
+<li>Passwords can also be stored inside Password Vault.</li>
+
+</ul>
+
+</div>
+""",
+            unsafe_allow_html=True,
         )
 
 # =====================================================
 # RIGHT PANEL
+# Version 5.0 Professional
+# Part 2B
 # =====================================================
 
 with right:
@@ -361,7 +503,7 @@ with right:
 Current Settings
 </h3>
 
-<table style="width:100%;line-height:2;">
+<table style="width:100%; line-height:2;">
 
 <tr>
 <td><b>Password Length</b></td>
@@ -374,12 +516,12 @@ Current Settings
 </tr>
 
 <tr>
-<td><b>Uppercase</b></td>
+<td><b>Uppercase Letters</b></td>
 <td>{"Enabled" if use_upper else "Disabled"}</td>
 </tr>
 
 <tr>
-<td><b>Lowercase</b></td>
+<td><b>Lowercase Letters</b></td>
 <td>{"Enabled" if use_lower else "Disabled"}</td>
 </tr>
 
@@ -394,22 +536,22 @@ Current Settings
 </tr>
 
 <tr>
-<td><b>Avoid Similar</b></td>
+<td><b>Avoid Similar Characters</b></td>
 <td>{"Yes" if avoid_similar else "No"}</td>
 </tr>
 
 <tr>
 <td><b>Excluded Characters</b></td>
-<td>{exclude_chars if exclude_chars else "-"}</td>
+<td>{exclude_chars if exclude_chars else "None"}</td>
 </tr>
 
 <tr>
-<td><b>Template</b></td>
+<td><b>Password Template</b></td>
 <td>{template_type}</td>
 </tr>
 
 <tr>
-<td><b>Memorable</b></td>
+<td><b>Memorable Password</b></td>
 <td>{"Enabled" if memorable else "Disabled"}</td>
 </tr>
 
@@ -417,421 +559,564 @@ Current Settings
 
 </div>
 """,
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
 
-    st.markdown("### Quick Overview")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-
-        st.metric(
-
-            "Generated",
-
-            len(st.session_state.passwords)
-
-            if st.session_state.generated
-
-            else 0
-
-        )
-
-    with col2:
-
-        st.metric(
-
-            "Template",
-
-            template_type
-
-        )
-
-# =====================================================
-# GENERATED PASSWORDS
-# Version 4.2 Professional
-# Part 3 / 4
-# =====================================================
-
-if st.session_state.generated:
-
-    st.divider()
-
-    st.header("Generated Passwords")
-
-    passwords = st.session_state.passwords
-
-    columns = st.columns(3)
-
-    for index, password in enumerate(passwords):
-
-        with columns[index % 3]:
-
-            st.markdown(
-                '<div class="card">',
-                unsafe_allow_html=True
-            )
-
-            st.subheader(f"Password {index + 1}")
-
-            st.code(
-                password,
-                language="text"
-            )
-
-            # ==========================================
-            # PASSWORD STRENGTH
-            # ==========================================
-
-            strength = check_strength(password)
-
-            st.progress(
-                (strength["score"] + 1) / 5
-            )
-
-            if strength["score"] <= 1:
-
-                st.error(strength["label"])
-
-            elif strength["score"] == 2:
-
-                st.warning(strength["label"])
-
-            else:
-
-                st.success(strength["label"])
-
-            # ==========================================
-            # ENTROPY & CRACK TIME
-            # ==========================================
-
-            entropy = calculate_entropy(password)
-
-            metric1, metric2 = st.columns(2)
-
-            with metric1:
-
-                st.metric(
-                    "Entropy",
-                    f"{entropy:.2f} bits"
-                )
-
-            with metric2:
-
-                st.metric(
-                    "Crack Time",
-                    crack_time(entropy)
-                )
-
-            st.divider()
-
-            # ==========================================
-            # SECURITY ANALYSIS
-            # ==========================================
-
-            show_password_stats(password)
-
-            show_health_report(password)
-
-            show_score(
-                password,
-                entropy
-            )
-
-            show_breach_check(password)
-
-            show_recommendations(
-                password,
-                entropy
-            )
-
-            st.divider()
-
-            # ==========================================
-            # COPY PASSWORD
-            # ==========================================
-
-            if st.button(
-
-                "Copy Password",
-
-                key=f"copy_password_{index}",
-
-                type="primary",
-
-                use_container_width=True
-
-            ):
-
-                try:
-
-                    if pyperclip:
-
-                        pyperclip.copy(password)
-
-                        st.success(
-                            "Password copied successfully."
-                        )
-
-                    else:
-
-                        st.code(password)
-
-                        st.info(
-                            "Clipboard not available. Copy manually."
-                        )
-
-                except Exception:
-
-                    st.code(password)
-
-                    st.info(
-                        "Clipboard not available. Copy manually."
-                    )
-
-            st.markdown(
-                "</div>",
-                unsafe_allow_html=True
-            )
-
-    st.divider()
-
-# =====================================================
-# SMART PASSWORD SUGGESTIONS
-# =====================================================
-
-if user_input:
-
-    st.header("Smart Password Suggestions")
-
-    letters = "".join(
-
-        ch for ch in user_input
-
-        if ch.isalpha()
-
-    )
-
-    numbers = "".join(
-
-        ch for ch in user_input
-
-        if ch.isdigit()
-
-    )
-
-    if not letters:
-
-        letters = "User"
-
-    if not numbers:
-
-        numbers = secrets.choice(
-
-            [
-
-                "123",
-
-                "321",
-
-                "786",
-
-                "007",
-
-                "2026",
-
-                "2027"
-
-            ]
-
-        )
-
-    suggestions = [
-
-        f"{letters.capitalize()}@{numbers}",
-
-        f"{letters.capitalize()}#{numbers}",
-
-        f"{letters.capitalize()}_{numbers}",
-
-        f"{letters.capitalize()}Secure{numbers}",
-
-        f"{letters.capitalize()}@Tech{numbers}",
-
-        f"{letters.capitalize()}@AI{numbers}",
-
-        f"{letters.capitalize()}{numbers}!",
-
-        f"{letters.capitalize()}_{numbers}_Pro",
-
-    ]
-
-    suggestion_cols = st.columns(2)
-
-    for i, suggestion in enumerate(suggestions):
-
-        with suggestion_cols[i % 2]:
-
-            st.markdown(
-                '<div class="card">',
-                unsafe_allow_html=True
-            )
-
-            st.code(
-                suggestion,
-                language="text"
-            )
-
-            if st.button(
-
-                "Copy Suggestion",
-
-                key=f"suggestion_{i}",
-
-                use_container_width=True
-
-            ):
-
-                try:
-
-                    if pyperclip:
-
-                        pyperclip.copy(suggestion)
-
-                        st.success("Copied successfully.")
-
-                    else:
-
-                        st.code(suggestion)
-
-                        st.info(
-                            "Clipboard unavailable."
-                        )
-
-                except Exception:
-
-                    st.code(suggestion)
-
-                    st.info(
-                        "Clipboard unavailable."
-                    )
-
-            st.markdown(
-                "</div>",
-                unsafe_allow_html=True
-            )
-
-# =====================================================
-# ABOUT
-# Version 5.1 Professional
-# =====================================================
-
-st.divider()
-
-with st.expander("About Smart Password Generator", expanded=False):
+    st.markdown("")
 
     st.markdown(
         """
-<h2>
-<i class="bi bi-info-circle-fill"></i>
-About Smart Password Generator
-</h2>
+<h3>
+<i class="bi bi-bar-chart-line-fill"></i>
+Quick Overview
+</h3>
+""",
+        unsafe_allow_html=True,
+    )
 
-A professional password generation and password management platform
-built using **Python**, **Streamlit**, and **SQLite**.
+    overview1, overview2 = st.columns(2)
 
----
+    with overview1:
 
-### <i class="bi bi-person-badge-fill"></i> Developer
+        st.metric(
+            label="Generated",
+            value=len(st.session_state.get("passwords", [])),
+        )
 
-**Mohd Shahnawaz**
+    with overview2:
 
-Founder & CEO — Tech Education World
+        st.metric(
+            label="Template",
+            value=template_type,
+        )
 
-Founding President — ENAC Cybersecurity Club
+    st.divider()
 
----
+    st.markdown(
+        """
+<h3>
+<i class="bi bi-graph-up-arrow"></i>
+Live Statistics
+</h3>
+""",
+        unsafe_allow_html=True,
+    )
 
-### <i class="bi bi-cpu-fill"></i> Technology Stack
+    stat1, stat2 = st.columns(2)
 
-- Python
-- Streamlit
-- SQLite
-- Pandas
-- Plotly
-- Cryptography
-- zxcvbn
+    try:
+        vault_total = vault_count()
+    except Exception:
+        vault_total = 0
 
----
+    try:
+        favorite_total = favorite_count()
+    except Exception:
+        favorite_total = 0
 
-### <i class="bi bi-stars"></i> Features
+    with stat1:
 
-- Secure Password Generator
-- Multiple Password Templates
-- Memorable Password Generator
-- Password Strength Analysis
-- Password Entropy Calculation
-- Password Crack Time Estimation
-- Password Health Report
-- Password Security Score
-- Offline Breach Detection
-- Password Recommendations
-- Password History
-- Analytics Dashboard
-- Password Vault
-- CSV / TXT / JSON Export
+        st.metric(
+            label="Vault",
+            value=vault_total,
+        )
 
----
+    with stat2:
 
-### <i class="bi bi-lightbulb-fill"></i> Upcoming Features
+        st.metric(
+            label="Favorites",
+            value=favorite_total,
+        )
 
-- Password Expiry Alerts
-- Vault Backup & Restore
-- QR Code Export
-- Password Audit Report
-- Cloud Synchronization
-- Multi-device Support
-- Password Sharing
-- Multi-Factor Authentication
+    st.divider()
 
+    st.markdown(
+        """
+<div class="card">
+
+<h3>
+<i class="bi bi-lightbulb-fill"></i>
+Password Guidelines
+</h3>
+
+<ul>
+
+<li>Use at least 16 characters whenever possible.</li>
+
+<li>Combine uppercase, lowercase, numbers and symbols.</li>
+
+<li>Avoid names, birthdays and common words.</li>
+
+<li>Use a different password for every account.</li>
+
+<li>Store passwords securely in Password Vault.</li>
+
+<li>Regularly update important account passwords.</li>
+
+</ul>
+
+</div>
 """,
         unsafe_allow_html=True,
     )
 
 # =====================================================
-# PROJECT DASHBOARD
+# GENERATED PASSWORDS
+# Version 5.0 Professional
+# Part 3A-1
 # =====================================================
 
-st.divider()
+if st.session_state.get("generated", False):
+
+    st.divider()
+
+    st.markdown(
+        """
+<h2>
+<i class="bi bi-files"></i>
+Generated Passwords
+</h2>
+""",
+        unsafe_allow_html=True,
+    )
+
+    passwords = st.session_state.get("passwords", [])
+
+    if not passwords:
+
+        st.info("No passwords available.")
+
+    else:
+
+        columns = st.columns(3)
+
+        for index, password in enumerate(passwords):
+
+            with columns[index % 3]:
+
+                st.markdown(
+                    '<div class="card">',
+                    unsafe_allow_html=True,
+                )
+
+                st.markdown(
+                    f"""
+<h4>
+<i class="bi bi-key-fill"></i>
+Password {index + 1}
+</h4>
+""",
+                    unsafe_allow_html=True,
+                )
+
+                st.code(
+                    password,
+                    language="text",
+                )
+
+                strength = check_strength(password)
+
+                progress = (strength["score"] + 1) / 5
+
+                st.progress(progress)
+
+                if strength["score"] <= 1:
+
+                    st.error(strength["label"])
+
+                elif strength["score"] == 2:
+
+                    st.warning(strength["label"])
+
+                else:
+
+                    st.success(strength["label"])
+
+                entropy = calculate_entropy(password)
+
+                metric_col1, metric_col2 = st.columns(2)
+
+                with metric_col1:
+
+                    st.metric(
+                        "Entropy",
+                        f"{entropy:.2f} bits",
+                    )
+
+                with metric_col2:
+
+                    st.metric(
+                        "Crack Time",
+                        crack_time(entropy),
+                    )
+
+                st.divider()
+
+                st.markdown(
+                    """
+<h4>
+<i class="bi bi-shield-check"></i>
+Security Analysis
+</h4>
+""",
+                    unsafe_allow_html=True,
+                )
+
+                show_password_stats(password)
+
+                show_health_report(password)
+
+                show_score(
+                    password,
+                    entropy,
+                )
+
+                show_breach_check(password)
+
+                show_recommendations(
+                    password,
+                    entropy,
+                )
+
+                st.divider()
+                
+                                # ==========================================
+                # COPY PASSWORD
+                # ==========================================
+
+                st.markdown(
+                    """
+<h4>
+<i class="bi bi-clipboard-check"></i>
+Copy Password
+</h4>
+""",
+                    unsafe_allow_html=True,
+                )
+
+                render_copy_button(
+                    password=password,
+                    key=f"generated_password_{index}",
+                )
+
+                st.markdown("<br>", unsafe_allow_html=True)
+
+                st.markdown(
+                    "</div>",
+                    unsafe_allow_html=True,
+                )
+
+    st.divider()
+
+    total_passwords = len(passwords)
+
+    strong_passwords = sum(
+        1
+        for password in passwords
+        if check_strength(password)["score"] >= 3
+    )
+
+    avg_entropy = (
+        sum(
+            calculate_entropy(password)
+            for password in passwords
+        ) / total_passwords
+        if total_passwords
+        else 0
+    )
+
+    st.markdown(
+        """
+<h2>
+<i class="bi bi-bar-chart"></i>
+Generation Summary
+</h2>
+""",
+        unsafe_allow_html=True,
+    )
+
+    summary1, summary2, summary3 = st.columns(3)
+
+    with summary1:
+
+        st.metric(
+            label="Passwords",
+            value=total_passwords,
+        )
+
+    with summary2:
+
+        st.metric(
+            label="Strong",
+            value=strong_passwords,
+        )
+
+    with summary3:
+
+        st.metric(
+            label="Average Entropy",
+            value=f"{avg_entropy:.1f}",
+        )
+
+    st.divider()
+
+# =====================================================
+# SMART PASSWORD SUGGESTIONS
+# Version 5.0 Professional
+# Part 3B-1
+# =====================================================
 
 st.markdown(
     """
 <h2>
-<i class="bi bi-speedometer2"></i>
-Project Dashboard
+<i class="bi bi-lightbulb"></i>
+Smart Password Suggestions
 </h2>
 """,
     unsafe_allow_html=True,
 )
 
-page_names = {
-    "generator": "Generator",
-    "history": "History",
-    "dashboard": "Dashboard",
-    "vault": "Vault",
-    "favorites": "Favorites",
-    "expired": "Expired",
-}
-
-current_page = page_names.get(
-    st.session_state.get("page", "generator"),
-    "Generator",
+st.write(
+    "Generate additional password ideas based on your current security configuration."
 )
 
-generated_count = len(
-    st.session_state.get("passwords", [])
+suggestion_col1, suggestion_col2 = st.columns(2)
+
+with suggestion_col1:
+
+    if st.button(
+        "Generate One More",
+        key="generate_extra",
+        use_container_width=True,
+    ):
+
+        extra_password = generate_passwords(
+            user_input=user_input,
+            extra_letters=extra_letters,
+            extra_numbers=extra_numbers,
+            length=password_length,
+            count=1,
+            use_upper=use_upper,
+            use_lower=use_lower,
+            use_numbers=use_numbers,
+            use_symbols=use_symbols,
+            avoid_similar=avoid_similar,
+            exclude_chars=exclude_chars,
+            template_type=template_type,
+            memorable=memorable,
+        )[0]
+
+        st.session_state.setdefault(
+            "extra_passwords",
+            []
+        )
+
+        st.session_state.extra_passwords.append(
+            extra_password
+        )
+
+with suggestion_col2:
+
+    if st.button(
+        "Clear Suggestions",
+        key="clear_extra",
+        use_container_width=True,
+    ):
+
+        st.session_state.extra_passwords = []
+
+st.session_state.setdefault(
+    "extra_passwords",
+    []
 )
+
+if st.session_state.extra_passwords:
+
+    st.divider()
+
+    st.markdown(
+        """
+<h3>
+<i class="bi bi-stars"></i>
+Suggested Passwords
+</h3>
+""",
+        unsafe_allow_html=True,
+    )
+
+    for idx, password in enumerate(
+        st.session_state.extra_passwords,
+        start=1,
+    ):
+
+        st.markdown(
+            '<div class="card">',
+            unsafe_allow_html=True,
+        )
+
+        st.markdown(
+            f"""
+<b>Suggestion {idx}</b>
+""",
+            unsafe_allow_html=True,
+        )
+
+        st.code(
+            password,
+            language="text",
+        )
+
+        strength = check_strength(password)
+
+        entropy = calculate_entropy(password)
+
+        stat1, stat2 = st.columns(2)
+
+        with stat1:
+
+            st.metric(
+                "Strength",
+                strength["label"],
+            )
+
+        with stat2:
+
+            st.metric(
+                "Entropy",
+                f"{entropy:.2f}",
+            )
+
+        render_copy_button(
+            password=password,
+            key=f"suggestion_copy_{idx}",
+        )
+
+        st.markdown(
+            "</div>",
+            unsafe_allow_html=True,
+        )
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+st.divider()
+
+# =====================================================
+# ABOUT PROJECT
+# Version 5.0 Professional
+# Part 3B-2
+# =====================================================
+
+st.markdown(
+    """
+<h2>
+<i class="bi bi-info-circle-fill"></i>
+About Smart Password Generator
+</h2>
+""",
+    unsafe_allow_html=True,
+)
+
+st.markdown(
+    """
+<div class="card">
+
+<p>
+
+The <b>Smart Password Generator</b> is a professional password
+management application built using Python and Streamlit.
+
+It enables users to create strong passwords, analyze password
+security, securely store credentials, monitor password health,
+and visualize security insights.
+
+</p>
+
+<h4>Key Features</h4>
+
+<ul>
+
+<li>Secure Password Generation</li>
+
+<li>Password Strength Analysis</li>
+
+<li>Entropy Calculation</li>
+
+<li>Estimated Crack Time</li>
+
+<li>Password Vault</li>
+
+<li>Password History</li>
+
+<li>Security Dashboard</li>
+
+<li>Password Health Report</li>
+
+<li>Breach Detection</li>
+
+<li>Export & Backup</li>
+
+</ul>
+
+</div>
+""",
+    unsafe_allow_html=True,
+)
+
+st.divider()
+
+# =====================================================
+# QUICK ACCESS
+# =====================================================
+
+
+
+st.markdown(
+    """
+<h2>
+<i class="bi bi-grid-fill"></i>
+Quick Access
+</h2>
+""",
+    unsafe_allow_html=True,
+)
+
+quick1, quick2, quick3 = st.columns(3)
+
+with quick1:
+
+    if st.button(
+        "Open Dashboard",
+        key="quick_dashboard",
+        use_container_width=True,
+    ):
+        st.session_state.page = "dashboard"
+        st.rerun()
+
+with quick2:
+
+    if st.button(
+        "Open Vault",
+        key="quick_vault",
+        use_container_width=True,
+    ):
+        st.session_state.page = "vault"
+        st.rerun()
+
+with quick3:
+
+    if st.button(
+        "Open History",
+        key="quick_history",
+        use_container_width=True,
+    ):
+        st.session_state.page = "history"
+        st.rerun()
+
+st.divider()
+
+# =====================================================
+# APPLICATION SUMMARY
+# =====================================================
 
 try:
     vault_total = vault_count()
@@ -843,37 +1128,29 @@ try:
 except Exception:
     favorite_total = 0
 
-col1, col2, col3, col4, col5 = st.columns(5)
+generated_total = len(st.session_state.get("passwords", []))
 
-with col1:
+summary1, summary2, summary3 = st.columns(3)
+
+with summary1:
     st.metric(
-        label="Generated",
-        value=generated_count,
+        "Generated",
+        generated_total,
     )
 
-with col2:
+with summary2:
     st.metric(
-        label="Templates",
-        value="11",
+        "Vault",
+        vault_total,
     )
 
-with col3:
+with summary3:
     st.metric(
-        label="Current Page",
-        value=current_page,
+        "Favorites",
+        favorite_total,
     )
 
-with col4:
-    st.metric(
-        label="Vault",
-        value=vault_total,
-    )
-
-with col5:
-    st.metric(
-        label="Favorites",
-        value=favorite_total,
-    )
+st.divider()
 
 # =====================================================
 # FOOTER
@@ -882,3 +1159,9 @@ with col5:
 st.divider()
 
 show_footer()
+
+# =====================================================
+# END OF FILE
+# Smart Password Generator
+# Version 5.0 Professional
+# =====================================================

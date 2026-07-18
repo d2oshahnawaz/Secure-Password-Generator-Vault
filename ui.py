@@ -1,10 +1,9 @@
 # =====================================================
 # UI FUNCTIONS
-# Version 4.0 Professional
+# Version 5.0 Professional
 # =====================================================
 
 import streamlit as st
-import pyperclip
 
 from database import (
     get_history,
@@ -18,6 +17,9 @@ from history import (
     export_json,
 )
 
+from clipboard import render_copy_button
+
+
 # =====================================================
 # HELPER FUNCTIONS
 # =====================================================
@@ -26,7 +28,8 @@ def mask_password(password: str) -> str:
     """
     Mask password before displaying.
 
-    Example:
+    Example
+    -------
     Mohd@123456
     ↓
     Mo*******56
@@ -53,54 +56,50 @@ def show_history():
     st.header("Password History")
 
     st.caption(
-        "Search, review and manage generated passwords."
+        "Search, review and manage your generated passwords."
     )
 
     st.divider()
 
-    # ==========================================
+    # =================================================
     # SEARCH + FILTER
-    # ==========================================
+    # =================================================
 
-    left, right = st.columns([3, 1])
+    col1, col2 = st.columns([3, 1])
 
-    with left:
+    with col1:
 
         keyword = st.text_input(
-            "Search",
+            "Search Password",
             placeholder="Search password...",
-            key="history_search"
+            key="history_search",
         )
 
-    with right:
+    with col2:
 
         filter_option = st.selectbox(
-
+            
             "Filter",
-
+            
             [
-
+                
                 "All",
-
+                
                 "Strong",
-
+                
                 "Medium",
-
-                "Weak"
-
+                "Weak",
             ],
-
-            key="history_filter"
-
+            key="history_filter",
         )
 
-    # ==========================================
+    # =================================================
     # LOAD HISTORY
-    # ==========================================
+    # =================================================
 
-    if keyword:
+    if keyword.strip():
 
-        history = search_history(keyword)
+        history = search_history(keyword.strip())
 
     else:
 
@@ -114,9 +113,9 @@ def show_history():
 
         return
 
-    # ==========================================
-    # FILTER DATA
-    # ==========================================
+    # =================================================
+    # FILTER HISTORY
+    # =================================================
 
     if filter_option != "All":
 
@@ -127,93 +126,91 @@ def show_history():
             for row in history
 
             if filter_option.lower()
-
+            
             in row[2].lower()
 
         ]
 
-    # ==========================================
+    # =================================================
     # METRICS
-    # ==========================================
+    # =================================================
 
-    col1, col2 = st.columns(2)
+    metric1, metric2 = st.columns(2)
 
-    with col1:
+    with metric1:
 
         st.metric(
-
+            
             "Total Passwords",
-
-            len(history)
-
+            len(history),
         )
 
-    with col2:
+    with metric2:
 
         st.metric(
-
+            
             "Showing",
-
-            min(len(history), 20)
-
+            min(len(history), 20),
+            
         )
 
     st.caption(
-        "Displaying latest 20 records."
+        "Displaying latest 20 passwords."
     )
 
     history = history[:20]
 
     st.divider()
 
-    # ==========================================
+    # =================================================
     # HISTORY CARDS
-    # ==========================================
+    # =================================================
 
     for row in history:
 
         with st.container(border=True):
 
-            top_left, top_right = st.columns([4, 1])
+            left, right = st.columns([4, 1])
 
-            with top_left:
+            with left:
 
                 st.subheader(
                     mask_password(row[1])
                 )
 
-            with top_right:
+            with right:
 
                 st.metric(
                     "Strength",
-                    row[2]
+                    row[2],
                 )
 
             st.code(
                 row[1],
-                language="text"
+                language="text",
             )
-            # ==========================================
+
+                        # =================================================
             # PASSWORD DETAILS
-            # ==========================================
+            # =================================================
 
-            c1, c2, c3 = st.columns(3)
+            detail1, detail2, detail3 = st.columns(3)
 
-            with c1:
+            with detail1:
 
                 st.metric(
                     "Entropy",
-                    f"{row[3]:.2f} bits"
+                    f"{row[3]:.2f} bits",
                 )
 
-            with c2:
+            with detail2:
 
                 st.metric(
                     "Crack Time",
-                    row[4]
+                    row[4],
                 )
 
-            with c3:
+            with detail3:
 
                 st.write("Created")
 
@@ -223,61 +220,34 @@ def show_history():
 
             st.divider()
 
-            # ==========================================
+            # =================================================
             # ACTION BUTTONS
-            # ==========================================
+            # =================================================
 
-            btn1, btn2 = st.columns(2)
+            copy_col, delete_col = st.columns(2)
 
-            # -----------------------------
-            # COPY
-            # -----------------------------
+            # ---------------------------------------------
+            # COPY PASSWORD
+            # ---------------------------------------------
 
-            with btn1:
+            with copy_col:
 
-                if st.button(
+                render_copy_button(
+                    password=row[1],
+                    key=f"history_{row[0]}"
+                )
 
-                    "Copy",
+            # ---------------------------------------------
+            # DELETE PASSWORD
+            # ---------------------------------------------
 
-                    key=f"copy_history_{row[0]}",
-
-                    use_container_width=True
-
-                ):
-
-                    try:
-
-                        pyperclip.copy(row[1])
-
-                        st.success(
-                            "Password copied successfully."
-                        )
-
-                    except Exception:
-
-                        st.code(
-                            row[1],
-                            language="text"
-                        )
-
-                        st.info(
-                            "Clipboard unavailable. Copy manually."
-                        )
-
-            # -----------------------------
-            # DELETE
-            # -----------------------------
-
-            with btn2:
+            with delete_col:
 
                 if st.button(
-
-                    "Delete",
-
+                    "Delete Password",
                     key=f"delete_history_{row[0]}",
-
-                    use_container_width=True
-
+                    use_container_width=True,
+                    type="secondary",
                 ):
 
                     delete_history(row[0])
@@ -287,21 +257,62 @@ def show_history():
                     )
 
                     st.rerun()
-# =====================================================
+
+    # =================================================
+    # END OF PASSWORD HISTORY
+    # =================================================
+
+    st.success(
+        f"Showing {len(history)} password(s)."
+    )
+
+    st.divider()
+
+    # =====================================================
 # EXPORT PASSWORD HISTORY
 # =====================================================
 
 def show_export():
 
-    st.divider()
+
 
     st.header("Export Password History")
 
     st.caption(
-        "Download your password history in different formats."
+        "Download your password history in multiple formats."
     )
 
-    csv_data = export_csv()
+    st.divider()
+
+    history_df = export_csv()
+
+    if history_df.empty:
+
+        st.info(
+            "No password history available to export."
+        )
+
+        return
+
+    total_records = len(history_df)
+
+    metric1, metric2 = st.columns(2)
+
+    with metric1:
+
+        st.metric(
+            "Available Records",
+            total_records
+        )
+
+    with metric2:
+
+        st.metric(
+            "Export Formats",
+            "3"
+        )
+
+    st.divider()
 
     col1, col2, col3 = st.columns(3)
 
@@ -315,13 +326,15 @@ def show_export():
 
             label="Download CSV",
 
-            data=csv_data.to_csv(index=False),
+            data=history_df.to_csv(index=False),
 
             file_name="password_history.csv",
 
             mime="text/csv",
 
-            use_container_width=True
+            use_container_width=True,
+
+            type="primary"
 
         )
 
@@ -365,12 +378,41 @@ def show_export():
 
         )
 
+    st.success(
+        "Export is ready. Choose any format to download."
+    )
+
+    st.divider()
+
+    with st.expander(
+        "Export Information",
+        expanded=False
+    ):
+
+        st.markdown("""
+
+**CSV**
+- Spreadsheet compatible
+- Microsoft Excel
+- Google Sheets
+
+**TXT**
+- Plain text format
+- Lightweight
+- Easy to read
+
+**JSON**
+- Structured data
+- Developer friendly
+- Suitable for backups
+
+        """)
 
 # =====================================================
 # EMPTY PAGE
 # =====================================================
 
-def empty_page(message):
+def empty_page(message: str):
 
     st.info(message)
 
@@ -379,7 +421,7 @@ def empty_page(message):
 # SECTION TITLE
 # =====================================================
 
-def section_title(title):
+def section_title(title: str):
 
     st.header(title)
 
@@ -387,35 +429,55 @@ def section_title(title):
 
 
 # =====================================================
-# FOOTER
+# PROFESSIONAL FOOTER
 # =====================================================
 
 def show_footer():
 
     st.divider()
 
-    left, center, right = st.columns(3)
+    col1, col2, col3 = st.columns(3)
 
-    with left:
+    with col1:
 
-        st.caption(
-            "Smart Password Generator"
-        )
+        st.caption("Smart Password Generator")
 
-    with center:
+        st.caption("Secure • Fast • Reliable")
 
-        st.caption(
-            "Version 4.0"
-        )
+    with col2:
 
-    with right:
+        st.caption("Version 5.0 Professional")
 
-        st.caption(
-            "© 2026 Mohd Shahnawaz"
-        )
+        st.caption("Python • Streamlit • SQLite")
 
-    st.caption(
-        "Built with Python • Streamlit • SQLite • Cryptography"
+    with col3:
+
+        st.caption("Developed by")
+
+        st.caption("© 2026 Mohd Shahnawaz")
+
+    st.divider()
+
+    st.markdown(
+        """
+<div style="text-align:center;
+font-size:13px;
+color:#9ca3af;
+padding-top:5px;
+padding-bottom:5px;">
+
+Built with ❤️ using
+<strong>Python</strong>,
+<strong>Streamlit</strong>,
+<strong>SQLite</strong>,
+<strong>Cryptography</strong>,
+<strong>Pandas</strong>,
+<strong>Plotly</strong> &
+<strong>zxcvbn</strong>
+
+</div>
+""",
+        unsafe_allow_html=True,
     )
 
 
@@ -425,7 +487,55 @@ def show_footer():
 
 def page_not_ready():
 
-    st.info(
-        "This feature will be available in a future update."
+    st.warning(
+        """
+This feature is currently under development.
+
+It will be available in an upcoming release.
+"""
     )
-    
+
+
+# =====================================================
+# VERSION INFORMATION
+# =====================================================
+
+def show_version():
+
+    with st.expander("Application Information", expanded=False):
+
+        st.markdown(
+            """
+### Smart Password Generator
+
+**Version:** 5.0 Professional
+
+#### Features
+
+- Secure Password Generator
+- Password Strength Analysis
+- Password Vault
+- Password History
+- Analytics Dashboard
+- Password Export
+- Browser Clipboard Support
+- Streamlit Cloud Compatible
+- SQLite Database
+- Modern Responsive UI
+
+#### Technologies
+
+- Python
+- Streamlit
+- SQLite
+- Cryptography
+- Plotly
+- Pandas
+- zxcvbn
+"""
+        )
+
+
+# =====================================================
+# END OF FILE
+# =====================================================

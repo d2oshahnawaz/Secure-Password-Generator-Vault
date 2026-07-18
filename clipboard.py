@@ -1,6 +1,6 @@
 # =====================================================
 # CLIPBOARD UTILITIES
-# Version 5.0 Professional
+# Version 5.1 Professional
 # Browser Clipboard (Streamlit Cloud Compatible)
 # =====================================================
 
@@ -13,145 +13,191 @@ import streamlit.components.v1 as components
 # =====================================================
 
 def render_copy_button(password, key):
+    """
+    Render a browser-based Copy button.
+
+    Works on:
+    ✔ Streamlit Cloud
+    ✔ Windows
+    ✔ Linux
+    ✔ macOS
+    ✔ Chrome
+    ✔ Edge
+    ✔ Firefox
+    """
 
     password = html.escape(str(password))
 
     components.html(
         f"""
-        <!DOCTYPE html>
-        <html>
+<!DOCTYPE html>
+<html>
 
-        <head>
+<head>
 
-            <!-- Bootstrap Icons -->
-            <link
-                rel="stylesheet"
-                href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<link rel="stylesheet"
+href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
-            <style>
+<style>
 
-                body {{
-                    margin:0;
-                    padding:0;
-                    background:transparent;
-                    font-family:Arial, sans-serif;
-                }}
+*{{
+box-sizing:border-box;
+margin:0;
+padding:0;
+font-family:Arial,sans-serif;
+}}
 
-                .container {{
-                    display:flex;
-                    gap:12px;
-                    align-items:center;
-                }}
+body{{
+background:transparent;
+}}
 
-                input {{
-                    flex:1;
-                    padding:12px;
-                    border-radius:8px;
-                    border:1px solid #444;
-                    background:#1e1e1e;
-                    color:white;
-                    font-size:15px;
-                    outline:none;
-                }}
+.container{{
+display:flex;
+align-items:center;
+gap:12px;
+padding:4px;
+}}
 
-                button {{
-                    display:flex;
-                    align-items:center;
-                    justify-content:center;
-                    gap:8px;
-                    padding:12px 18px;
-                    border:none;
-                    border-radius:8px;
-                    cursor:pointer;
-                    background:#00ACC1;
-                    color:white;
-                    font-weight:600;
-                    transition:.2s;
-                }}
+input{{
+flex:1;
+height:42px;
+padding:0 14px;
+border-radius:8px;
+border:1px solid #4b5563;
+background:#1f2937;
+color:#ffffff;
+font-size:15px;
+outline:none;
+}}
 
-                button:hover {{
-                    background:#0097A7;
-                }}
+input:focus{{
+border-color:#00ACC1;
+}}
 
-                #msg {{
-                    margin-left:10px;
-                    color:#4CAF50;
-                    font-size:14px;
-                    display:none;
-                    font-weight:600;
-                }}
+button{{
+height:42px;
+padding:0 18px;
+border:none;
+border-radius:8px;
+background:#00ACC1;
+color:white;
+font-size:14px;
+font-weight:600;
+cursor:pointer;
+display:flex;
+align-items:center;
+gap:8px;
+transition:all .2s ease;
+}}
 
-            </style>
+button:hover{{
+background:#0097A7;
+}}
 
-        </head>
+button:active{{
+transform:scale(.97);
+}}
 
-        <body>
+</style>
 
-            <div class="container">
+</head>
 
-                <input
-                    id="pwd_{key}"
-                    type="text"
-                    value="{password}"
-                    readonly>
+<body>
 
-                <button onclick="copyPassword()">
+<div class="container">
 
-                    <i class="bi bi-copy"></i>
+<input
+id="pwd_{key}"
+type="text"
+value="{password}"
+readonly>
 
-                    Copy
+<button
+id="btn_{key}"
+onclick="copyPassword()">
 
-                </button>
+<i class="bi bi-copy"></i>
 
-                <span id="msg">
+<span id="text_{key}">
+Copy
+</span>
 
-                    Copied
+</button>
 
-                </span>
+</div>
 
-            </div>
+<script>
 
-            <script>
+async function copyPassword(){{
 
-                async function copyPassword() {{
+const input=document.getElementById("pwd_{key}");
+const text=document.getElementById("text_{key}");
+const icon=document.querySelector("#btn_{key} i");
 
-                    const txt =
-                        document.getElementById("pwd_{key}");
+try{{
 
-                    try {{
+await navigator.clipboard.writeText(input.value);
 
-                        await navigator.clipboard.writeText(txt.value);
+icon.className="bi bi-check2";
 
-                        const msg =
-                            document.getElementById("msg");
+text.innerHTML="Copied";
 
-                        msg.style.display = "inline";
+setTimeout(()=>{{
 
-                        setTimeout(() => {{
+icon.className="bi bi-copy";
 
-                            msg.style.display = "none";
+text.innerHTML="Copy";
 
-                        }},2000);
+}},2000);
 
-                    }}
+}}
 
-                    catch(err) {{
+catch(err){{
 
-                        txt.select();
+input.focus();
+input.select();
 
-                        document.execCommand("copy");
+try{{
 
-                    }}
+document.execCommand("copy");
 
-                }}
+icon.className="bi bi-check2";
 
-            </script>
+text.innerHTML="Copied";
 
-        </body>
+setTimeout(()=>{{
 
-        </html>
-        """,
-        height=70,
+icon.className="bi bi-copy";
+
+text.innerHTML="Copy";
+
+}},2000);
+
+}}
+
+catch(e){{
+
+text.innerHTML="Failed";
+
+setTimeout(()=>{{
+
+text.innerHTML="Copy";
+
+}},2000);
+
+}}
+
+}}
+
+}}
+
+</script>
+
+</body>
+
+</html>
+""",
+        height=58,
     )
 
 
@@ -160,5 +206,4 @@ def render_copy_button(password, key):
 # =====================================================
 
 def render_copy_text(text, key):
-
     render_copy_button(text, key)
