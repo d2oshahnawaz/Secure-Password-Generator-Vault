@@ -1,160 +1,119 @@
-# Secure Password Generator & Vault
+<p align="center">
+  <img src="assets/banner.png" alt="Banner" width="100%">
+</p>
 
-![Python](https://img.shields.io/badge/Python-3.10+-blue)
-![Streamlit](https://img.shields.io/badge/Streamlit-Latest-red)
-![Version](https://img.shields.io/badge/Version-6.0%20Professional-orange)
-![License](https://img.shields.io/badge/License-MIT-green)
-![Status](https://img.shields.io/badge/Status-Production-success)
+<p align="center">
+  <img src="assets/logo.png" width="140">
+</p>
 
----
+<h1 align="center">
+Secure Password Generator & Vault
+</h1>
 
-# Project Overview
+<p align="center">
+A Modern Password Security Platform built with Python, Streamlit and Cryptography.
+</p>
 
-...
+<p align="center">
 
----
+![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![Streamlit](https://img.shields.io/badge/Streamlit-Latest-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)
+![Version](https://img.shields.io/badge/Version-6.0-orange?style=for-the-badge)
+![License](https://img.shields.io/badge/License-MIT-success?style=for-the-badge)
+![Status](https://img.shields.io/badge/Status-Production-success?style=for-the-badge)
 
-# Key Features
-
-## Password Generator
-
-- Generate Secure Passwords
-- Custom Password Length
-- Uppercase Letters
-- Lowercase Letters
-- Numbers
-- Symbols
-- Exclude Similar Characters
-- Exclude Custom Characters
-- Password Templates
-- Generate Multiple Passwords
+</p>
 
 ---
 
-## Password Vault
+## Live Demo
 
-- Master Password Authentication
-- Recovery Key
-- Security Questions
-- Secure Password Encryption
-- Password Categories
-- Tags
-- Secure Notes
-- Search Passwords
-- Favorites
-- Password Expiry
-- Edit Password
-- Delete Password
-- Auto Lock
-- Dashboard
+https://smart-password-generator.streamlit.app
 
 ---
 
-## Password Analytics
+# Overview
 
-- Password Statistics
-- Password Strength Analysis
-- Entropy Calculation
-- Crack Time Estimation
-- Password Health Report
-- Interactive Charts
-- Security Recommendations
+Secure Password Generator & Vault is a professional password security application designed to help users generate strong passwords, analyze password security, securely store credentials, and manage encrypted password vaults through a clean and interactive Streamlit interface.
 
 ---
 
-## Security Features
+# Features
 
-- Fernet Encryption
-- PBKDF2 Password Hashing
-- Local Breach Detection
-- Password History
-- Password Expiry
-- Login Attempt Protection
-- Recovery Verification
-- Secure Storage
-- Encryption Key Management
-
----
-
-## Export Features
-
-- CSV Export
-- JSON Export
-- Vault Backup
-- Analytics Report
+| Password Generator | Password Vault | Security |
+|--------------------|---------------|----------|
+| Strong Password Generation | Master Password | Fernet Encryption |
+| Custom Length | Recovery Key | PBKDF2 Hashing |
+| Symbols | Secure Notes | Password History |
+| Templates | Favorites | Breach Detection |
+| Multiple Passwords | Categories | Password Expiry |
+| Exclude Characters | Search | Auto Lock |
 
 ---
 
-# Screenshots
+# Application Preview
 
-## Home
+<p align="center">
 
-![Home](assets/screenshots/home.png)
+<img src="assets/screenshots/home.png" width="48%">
+<img src="assets/screenshots/generator.png" width="48%">
 
-## Password Generator
+</p>
 
-![Generator](assets/screenshots/generator.png)
+<p align="center">
 
-## Password Vault
+<img src="assets/screenshots/vault.png" width="48%">
+<img src="assets/screenshots/dashboard.png" width="48%">
 
-![Vault](assets/screenshots/vault.png)
+</p>
 
-## Analytics Dashboard
+<p align="center">
 
-![Analytics](assets/screenshots/dashboard.png)
+<img src="assets/screenshots/history.png" width="48%">
 
-## Password Health
+</p>
 
-![Health](assets/screenshots/health-report.png)
+---
 
-## Password History
+# Technology Stack
 
-![History](assets/screenshots/history.png)
+| Technology | Description |
+|------------|-------------|
+| Python | Programming Language |
+| Streamlit | Frontend Framework |
+| SQLite | Local Database |
+| Cryptography | Encryption |
+| Plotly | Interactive Charts |
+| Pandas | Data Processing |
+| zxcvbn | Password Strength Analysis |
+| OpenPyXL | Excel Export |
 
 ---
 
 # Project Structure
 
 ```text
-...
+Secure-Password-Generator-Vault
+│
+├── .streamlit/
+├── assets/
+├── data/
+│
+├── app.py
+├── analytics.py
+├── crypto.py
+├── database.py
+├── generator.py
+├── health.py
+├── history.py
+├── master.py
+├── vault.py
+├── ui.py
+│
+├── requirements.txt
+├── README.md
+└── LICENSE
 ```
-
----
-
-# Technologies Used
-
-| Technology | Purpose |
-|------------|---------|
-| Python | Core Programming |
-| Streamlit | Web Framework |
-| SQLite | Local Database |
-| Cryptography | Encryption |
-| Plotly | Analytics |
-| Pandas | Data Processing |
-| zxcvbn | Password Strength |
-| openpyxl | Excel Export |
-
----
-
-# Security Architecture
-
-### Encryption
-
-- Fernet Encryption
-- Secure Key Management
-
-### Authentication
-
-- PBKDF2-HMAC-SHA256
-- Master Password
-- Password History
-- Password Expiry
-
-### Recovery
-
-- Recovery Key
-- Security Questions
-- Password Reset
 
 ---
 
@@ -162,32 +121,28 @@
 
 ```bash
 git clone https://github.com/d2oshahnawaz/Secure-Password-Generator-Vault.git
+
 cd Secure-Password-Generator-Vault
+
 pip install -r requirements.txt
+
 streamlit run app.py
 ```
 
 ---
 
-# Streamlit Deployment
+# Security
 
-Repository
-
-```
-Secure-Password-Generator-Vault
-```
-
-Main File
-
-```
-app.py
-```
-
-Python Version
-
-```
-3.10+
-```
+- Master Password Authentication
+- Recovery Key Support
+- Password Hashing using PBKDF2
+- Fernet Encryption
+- Secure Vault
+- Password History
+- Password Expiry
+- Breach Detection
+- Password Analytics
+- Auto Lock
 
 ---
 
@@ -199,65 +154,43 @@ Python Version
 | Password Vault | ✔ |
 | Master Password | ✔ |
 | Recovery Key | ✔ |
-| Security Questions | ✔ |
-| Encryption | ✔ |
+| Password Analytics | ✔ |
 | Password History | ✔ |
-| Analytics Dashboard | ✔ |
 | Password Health | ✔ |
+| Categories | ✔ |
+| Search | ✔ |
+| Favorites | ✔ |
 | CSV Export | ✔ |
 | JSON Export | ✔ |
-| Search | ✔ |
-| Categories | ✔ |
-| Favorites | ✔ |
-| Auto Lock | ✔ |
 
 ---
 
-# Future Enhancements
+# Future Roadmap
 
 - Two-Factor Authentication
 - Browser Extension
-- Cloud Synchronization
 - Password Sharing
+- Cloud Synchronization
 - Multi User Support
 - Mobile Application
 - REST API
-- PDF Export
-- Password Reuse Detection
-
----
-
-# Disclaimer
-
-This project is intended for educational, research and personal use.
-
-Users are responsible for securely managing their Master Password and Recovery Key.
+- PDF Reports
 
 ---
 
 # Contributing
 
-1. Fork Repository
-
-2. Create Feature Branch
+Contributions are welcome.
 
 ```bash
 git checkout -b feature-name
-```
 
-3. Commit Changes
-
-```bash
 git commit -m "Add feature"
-```
 
-4. Push Changes
-
-```bash
 git push origin feature-name
 ```
 
-5. Create Pull Request
+Create a Pull Request after pushing your branch.
 
 ---
 
@@ -265,8 +198,7 @@ git push origin feature-name
 
 **Mohd Shahnawaz**
 
-Founder & CEO
-
+Founder & CEO  
 Tech Education World™
 
 GitHub
@@ -279,23 +211,18 @@ https://www.linkedin.com/in/mohd-shahnawaz-645371205/
 
 ---
 
-# Support
-
-If you find this project useful,
-
-- Give this repository a Star
-- Report Bugs
-- Suggest Improvements
-- Contribute to Development
-
----
-
 # License
 
-MIT License
+This project is licensed under the MIT License.
 
-See LICENSE for details.
+See the LICENSE file for more information.
 
 ---
 
+<p align="center">
+
 Version 6.0 Professional
+
+Built using Python • Streamlit • Cryptography
+
+</p>
