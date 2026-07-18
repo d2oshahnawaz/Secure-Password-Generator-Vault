@@ -1,46 +1,47 @@
-# 🔐 Secure Password Generator & Vault
+# Secure Password Generator & Vault
 
 ![Python](https://img.shields.io/badge/Python-3.10+-blue)
 ![Streamlit](https://img.shields.io/badge/Streamlit-Latest-red)
+![Version](https://img.shields.io/badge/Version-6.0%20Professional-orange)
 ![License](https://img.shields.io/badge/License-MIT-green)
 ![Status](https://img.shields.io/badge/Status-Production-success)
-![Version](https://img.shields.io/badge/Version-6.0%20Professional-orange)
-
-A modern Password Generator and Password Vault application built with **Python**, **Streamlit**, **SQLite**, **Cryptography**, **Plotly**, **Pandas**, and **zxcvbn**.
-
-The application helps users generate secure passwords, evaluate password strength, securely store credentials using encryption, monitor password health, visualize analytics, and manage passwords through an encrypted vault.
 
 ---
 
-# ✨ Features
+# Project Overview
 
-## 🔑 Password Generator
+...
 
-- Generate secure random passwords
-- Custom password length
-- Uppercase letters
-- Lowercase letters
+---
+
+# Key Features
+
+## Password Generator
+
+- Generate Secure Passwords
+- Custom Password Length
+- Uppercase Letters
+- Lowercase Letters
 - Numbers
 - Symbols
-- Exclude similar characters
-- Custom character exclusion
-- Multiple password generation
-- Password templates
-- Password categories
+- Exclude Similar Characters
+- Exclude Custom Characters
+- Password Templates
+- Generate Multiple Passwords
 
 ---
 
-## 🔐 Password Vault
+## Password Vault
 
 - Master Password Authentication
 - Recovery Key
 - Security Questions
 - Secure Password Encryption
 - Password Categories
-- Password Tags
+- Tags
 - Secure Notes
 - Search Passwords
-- Favorite Passwords
+- Favorites
 - Password Expiry
 - Edit Password
 - Delete Password
@@ -49,20 +50,19 @@ The application helps users generate secure passwords, evaluate password strengt
 
 ---
 
-## 📊 Password Analytics
+## Password Analytics
 
 - Password Statistics
-- Password Strength
-- Entropy Calculator
+- Password Strength Analysis
+- Entropy Calculation
 - Crack Time Estimation
-- Health Report
-- Password Recommendations
+- Password Health Report
 - Interactive Charts
-- Vault Analytics
+- Security Recommendations
 
 ---
 
-## 🛡 Security Features
+## Security Features
 
 - Fernet Encryption
 - PBKDF2 Password Hashing
@@ -76,17 +76,16 @@ The application helps users generate secure passwords, evaluate password strengt
 
 ---
 
-## 📤 Export Features
+## Export Features
 
 - CSV Export
 - JSON Export
 - Vault Backup
-- Master Backup
 - Analytics Report
 
 ---
 
-# 📸 Screenshots
+# Screenshots
 
 ## Home
 
@@ -108,88 +107,48 @@ The application helps users generate secure passwords, evaluate password strengt
 
 ![Health](assets/screenshots/health-report.png)
 
-## History
+## Password History
 
 ![History](assets/screenshots/history.png)
 
 ---
 
-# 🏗 Project Structure
+# Project Structure
 
 ```text
-Secure-Password-Generator-Vault
-│
-├── .streamlit/
-│
-├── assets/
-│   ├── banner.png
-│   ├── favicon.png
-│   ├── logo.png
-│   └── screenshots/
-│
-├── data/
-│
-├── analytics.py
-├── app.py
-├── breach.py
-├── category.py
-├── clipboard.py
-├── cracktime.py
-├── crypto.py
-├── database.py
-├── entropy.py
-├── generator.py
-├── health.py
-├── history.py
-├── master.py
-├── recommend.py
-├── score.py
-├── session.py
-├── sidebar.py
-├── stats.py
-├── strength.py
-├── tags.py
-├── templates.py
-├── ui.py
-├── vault.py
-│
-├── requirements.txt
-├── README.md
-├── LICENSE
-└── .gitignore
+...
 ```
 
 ---
 
-# ⚙ Technologies Used
+# Technologies Used
 
 | Technology | Purpose |
-|------------|----------|
+|------------|---------|
 | Python | Core Programming |
-| Streamlit | User Interface |
+| Streamlit | Web Framework |
 | SQLite | Local Database |
 | Cryptography | Encryption |
-| Plotly | Analytics Charts |
+| Plotly | Analytics |
 | Pandas | Data Processing |
 | zxcvbn | Password Strength |
-| Pyperclip | Clipboard |
+| openpyxl | Excel Export |
 
 ---
 
-# 🔒 Security Architecture
+# Security Architecture
 
-### Password Encryption
+### Encryption
 
 - Fernet Encryption
 - Secure Key Management
 
-### Master Password
+### Authentication
 
 - PBKDF2-HMAC-SHA256
-- Salted Password Hashing
+- Master Password
 - Password History
 - Password Expiry
-- Failed Login Protection
 
 ### Recovery
 
@@ -199,47 +158,26 @@ Secure-Password-Generator-Vault
 
 ---
 
-# 🚀 Installation
-
-Clone repository
+# Installation
 
 ```bash
 git clone https://github.com/d2oshahnawaz/Secure-Password-Generator-Vault.git
-```
-
-Move into project
-
-```bash
 cd Secure-Password-Generator-Vault
-```
-
-Install dependencies
-
-```bash
 pip install -r requirements.txt
-```
-
-Run application
-
-```bash
 streamlit run app.py
 ```
 
 ---
 
-# ☁ Streamlit Deployment
+# Streamlit Deployment
 
-Push your project to GitHub.
-
-Deploy on Streamlit Community Cloud.
-
-Repository:
+Repository
 
 ```
 Secure-Password-Generator-Vault
 ```
 
-Main file
+Main File
 
 ```
 app.py
@@ -253,102 +191,83 @@ Python Version
 
 ---
 
-# 📦 Requirements
-
-- Python 3.10+
-- Streamlit
-- Pandas
-- Plotly
-- Cryptography
-- zxcvbn
-- openpyxl
-
-Install
-
-```bash
-pip install -r requirements.txt
-```
-
----
-
-# 📈 Current Modules
+# Current Modules
 
 | Module | Status |
 |---------|:------:|
-| Password Generator | ✅ |
-| Password Vault | ✅ |
-| Master Password | ✅ |
-| Recovery Key | ✅ |
-| Security Questions | ✅ |
-| Encryption | ✅ |
-| Password History | ✅ |
-| Analytics Dashboard | ✅ |
-| Password Health | ✅ |
-| Export CSV | ✅ |
-| Export JSON | ✅ |
-| Favorites | ✅ |
-| Categories | ✅ |
-| Search | ✅ |
-| Auto Lock | ✅ |
+| Password Generator | ✔ |
+| Password Vault | ✔ |
+| Master Password | ✔ |
+| Recovery Key | ✔ |
+| Security Questions | ✔ |
+| Encryption | ✔ |
+| Password History | ✔ |
+| Analytics Dashboard | ✔ |
+| Password Health | ✔ |
+| CSV Export | ✔ |
+| JSON Export | ✔ |
+| Search | ✔ |
+| Categories | ✔ |
+| Favorites | ✔ |
+| Auto Lock | ✔ |
 
 ---
 
-# 🎯 Future Roadmap
+# Future Enhancements
 
 - Two-Factor Authentication
 - Browser Extension
 - Cloud Synchronization
-- Multi User Support
 - Password Sharing
+- Multi User Support
 - Mobile Application
-- API Support
+- REST API
 - PDF Export
-- Dark/Light Themes
 - Password Reuse Detection
 
 ---
 
-# ⚠ Disclaimer
+# Disclaimer
 
-This project is intended for educational, research, and personal use.
+This project is intended for educational, research and personal use.
 
-Users are responsible for securely storing their Recovery Key and Master Password.
+Users are responsible for securely managing their Master Password and Recovery Key.
 
 ---
 
-# 🤝 Contributing
-
-Contributions are welcome.
+# Contributing
 
 1. Fork Repository
 
-2. Create Branch
+2. Create Feature Branch
 
 ```bash
 git checkout -b feature-name
 ```
 
-3. Commit
+3. Commit Changes
 
 ```bash
 git commit -m "Add feature"
 ```
 
-4. Push
+4. Push Changes
 
 ```bash
 git push origin feature-name
 ```
 
-5. Open Pull Request
+5. Create Pull Request
 
 ---
 
-# 👨‍💻 Author
+# Author
 
 **Mohd Shahnawaz**
 
-Founder & CEO — Tech Education World™
+Founder & CEO
+
+Tech Education World™
 
 GitHub
 
@@ -360,32 +279,23 @@ https://www.linkedin.com/in/mohd-shahnawaz-645371205/
 
 ---
 
-# ⭐ Support
+# Support
 
-If you like this project,
+If you find this project useful,
 
-⭐ Star this repository.
-
-🐞 Report bugs.
-
-💡 Suggest improvements.
-
-🤝 Contribute to development.
+- Give this repository a Star
+- Report Bugs
+- Suggest Improvements
+- Contribute to Development
 
 ---
 
-# 📄 License
+# License
 
-This project is licensed under the **MIT License**.
+MIT License
 
-See the LICENSE file for details.
+See LICENSE for details.
 
 ---
 
-## Version
-
-**Secure Password Generator & Vault**
-
-**Version 6.0 Professional**
-
-Built with ❤️ using Python & Streamlit.
+Version 6.0 Professional
