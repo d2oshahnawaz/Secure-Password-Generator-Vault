@@ -1,18 +1,16 @@
 # =====================================================
 # PASSWORD BREACH CHECKER
-# Version 4.0 Professional
+# Version 5.0 Professional
 # =====================================================
 
 from pathlib import Path
-
 import streamlit as st
 
 # =====================================================
-# DATABASE
+# DATABASE PATH
 # =====================================================
 
 BASE_DIR = Path(__file__).resolve().parent
-
 PASSWORD_FILE = BASE_DIR / "data" / "common_passwords.txt"
 
 # =====================================================
@@ -30,20 +28,30 @@ def load_passwords():
         with open(
             PASSWORD_FILE,
             "r",
-            encoding="utf-8"
+            encoding="utf-8",
         ) as file:
 
-            return {
-
+            passwords = {
                 line.strip().lower()
-
                 for line in file
-
                 if line.strip()
-
             }
 
+            return passwords
+
     except FileNotFoundError:
+
+        st.error(
+            "Local breach database not found."
+        )
+
+        return set()
+
+    except Exception as error:
+
+        st.error(
+            f"Unable to load breach database.\n\n{error}"
+        )
 
         return set()
 
@@ -54,24 +62,39 @@ COMMON_PASSWORDS = load_passwords()
 # CHECK PASSWORD
 # =====================================================
 
-def check_breach(password):
+def check_breach(password: str) -> bool:
     """
-    Return True if password exists
+    Returns True if password exists
     in local breach database.
     """
 
-    return str(password).lower() in COMMON_PASSWORDS
+    if not password:
+        return False
+
+    return password.lower() in COMMON_PASSWORDS
 
 
 # =====================================================
-# BREACH UI
+# BREACH REPORT
 # =====================================================
 
-def show_breach_check(password):
+def show_breach_check(password: str):
 
-    st.subheader("Password Breach Checker")
+    st.markdown(
+        """
+<h3>
+<i class="bi bi-shield-exclamation"></i>
+Password Breach Checker
+</h3>
+""",
+        unsafe_allow_html=True,
+    )
 
     breached = check_breach(password)
+
+    # =================================================
+    # OVERVIEW
+    # =================================================
 
     col1, col2 = st.columns(2)
 
@@ -79,46 +102,42 @@ def show_breach_check(password):
 
         st.metric(
             "Database Size",
-            f"{len(COMMON_PASSWORDS):,}"
+            f"{len(COMMON_PASSWORDS):,}",
         )
 
     with col2:
 
         st.metric(
-            "Password Status",
-            "Breached" if breached else "Safe"
+            "Status",
+            "Breached" if breached else "Safe",
         )
 
     st.divider()
 
+    # =================================================
+    # RESULT
+    # =================================================
+
     if breached:
 
         st.error(
-            "This password exists in the local breach database."
+            "This password was found in the local breach database."
         )
 
-        st.warning(
+        st.markdown(
             """
-Risk Level: HIGH
+<div class="card">
 
-Choose another password immediately.
-"""
-        )
+<h4>
+<i class="bi bi-exclamation-triangle-fill"></i>
+Risk Level : HIGH
+</h4>
 
-        st.info(
-            """
-Recommended:
+This password is commonly used and should not be used for any online account.
 
-• Minimum 12 characters
-
-• Uppercase letters
-
-• Lowercase letters
-
-• Numbers
-
-• Special characters
-"""
+</div>
+""",
+            unsafe_allow_html=True,
         )
 
     else:
@@ -127,14 +146,77 @@ Recommended:
             "This password was not found in the local breach database."
         )
 
-        st.info(
+        st.markdown(
             """
-Risk Level: LOW
+<div class="card">
 
-No match found in the offline breach database.
-"""
+<h4>
+<i class="bi bi-shield-check"></i>
+Risk Level : LOW
+</h4>
+
+No match was found in the offline breach database.
+
+</div>
+""",
+            unsafe_allow_html=True,
         )
 
-    st.caption(
-        "Offline breach detection using a local common-password database."
+    # =================================================
+    # SECURITY RECOMMENDATIONS
+    # =================================================
+
+    st.markdown(
+        """
+<h4>
+<i class="bi bi-lightbulb"></i>
+Security Recommendations
+</h4>
+""",
+        unsafe_allow_html=True,
+    )
+
+    recommendations = [
+        "Use at least 16 characters.",
+        "Include uppercase letters.",
+        "Include lowercase letters.",
+        "Include numbers.",
+        "Include special characters.",
+        "Avoid dictionary words.",
+        "Avoid personal information.",
+        "Use a unique password for every account.",
+        "Enable Multi-Factor Authentication (MFA).",
+        "Store passwords securely in Password Vault.",
+    ]
+
+    for item in recommendations:
+
+        st.write(f"• {item}")
+
+    st.divider()
+
+    # =================================================
+    # DATABASE INFORMATION
+    # =================================================
+
+    st.markdown(
+        """
+<h4>
+<i class="bi bi-database-fill-check"></i>
+Database Information
+</h4>
+""",
+        unsafe_allow_html=True,
+    )
+
+    st.info(
+        f"""
+Offline breach detection is performed using a local password database.
+
+Loaded Passwords : **{len(COMMON_PASSWORDS):,}**
+
+No internet connection is required.
+
+Your password is never transmitted to any external server.
+"""
     )

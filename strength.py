@@ -1,11 +1,11 @@
 # =====================================================
 # PASSWORD STRENGTH
-# Version 4.0 Professional
+# Version 5.0 Professional
 # =====================================================
 
 from __future__ import annotations
 
-from typing import Dict, Final
+from typing import Dict, Final, List
 
 # =====================================================
 # ZXCVBN IMPORT
@@ -23,7 +23,7 @@ except ImportError:
 
     def zxcvbn(password: str) -> Dict[str, int]:
         """
-        Lightweight fallback strength estimator.
+        Lightweight fallback estimator.
         Returns a score between 0 and 4.
         """
 
@@ -47,9 +47,7 @@ except ImportError:
             score += 1
 
         return {
-
             "score": min(score, 4)
-
         }
 
 # =====================================================
@@ -70,49 +68,43 @@ STRENGTH_LABELS: Final[Dict[int, str]] = {
 
 }
 
+STRENGTH_COLORS: Final[Dict[int, str]] = {
+
+    0: "#DC2626",
+
+    1: "#F97316",
+
+    2: "#EAB308",
+
+    3: "#2563EB",
+
+    4: "#16A34A",
+
+}
+
 # =====================================================
-# STRENGTH CHECK
+# CHECK STRENGTH
 # =====================================================
 
 def check_strength(
-    password: str
+    password: str,
 ) -> Dict[str, object]:
     """
     Analyze password strength.
-
-    Returns
-    -------
-    dict
-        score : int
-        label : str
     """
 
     result = zxcvbn(password)
 
     score = int(
-
         result.get(
-
             "score",
-
             0,
-
         )
-
     )
 
     score = max(
-
         0,
-
-        min(
-
-            score,
-
-            4,
-
-        ),
-
+        min(score, 4),
     )
 
     return {
@@ -121,6 +113,10 @@ def check_strength(
 
         "label": STRENGTH_LABELS[score],
 
+        "color": STRENGTH_COLORS[score],
+
+        "percentage": (score + 1) * 20,
+
     }
 
 # =====================================================
@@ -128,24 +124,88 @@ def check_strength(
 # =====================================================
 
 def is_strong_password(
-    password: str
+    password: str,
 ) -> bool:
     """
-    Return True if password is
-    Strong or Very Strong.
+    Return True if password is Strong or Very Strong.
     """
 
-    return (
+    return check_strength(password)["score"] >= 3
 
-        check_strength(
+# =====================================================
+# RECOMMENDATIONS
+# =====================================================
 
-            password
+def strength_recommendations(
+    password: str,
+) -> List[str]:
+    """
+    Return strength improvement suggestions.
+    """
 
-        )["score"]
+    recommendations: List[str] = []
 
-        >= 3
+    if len(password) < 12:
+        recommendations.append(
+            "Increase password length to at least 12 characters."
+        )
 
-    )
+    if not any(c.isupper() for c in password):
+        recommendations.append(
+            "Include uppercase letters."
+        )
+
+    if not any(c.islower() for c in password):
+        recommendations.append(
+            "Include lowercase letters."
+        )
+
+    if not any(c.isdigit() for c in password):
+        recommendations.append(
+            "Include numeric digits."
+        )
+
+    if not any(not c.isalnum() for c in password):
+        recommendations.append(
+            "Include special characters."
+        )
+
+    if not recommendations:
+        recommendations.append(
+            "Password follows recommended strength guidelines."
+        )
+
+    return recommendations
+
+# =====================================================
+# COMPLETE REPORT
+# =====================================================
+
+def strength_report(
+    password: str,
+) -> Dict[str, object]:
+    """
+    Return detailed strength report.
+    """
+
+    result = check_strength(password)
+
+    return {
+
+        "score": result["score"],
+
+        "label": result["label"],
+
+        "color": result["color"],
+
+        "percentage": result["percentage"],
+
+        "strong": result["score"] >= 3,
+
+        "recommendations":
+            strength_recommendations(password),
+
+    }
 
 # =====================================================
 # INFORMATION
@@ -158,23 +218,18 @@ def strength_info() -> Dict[str, object]:
 
     return {
 
-        "library": (
-
+        "library":
             "zxcvbn"
-
             if ZXCVBN_AVAILABLE
-
-            else "fallback"
-
-        ),
+            else "fallback",
 
         "max_score": 4,
 
-        "levels": list(
+        "levels":
+            list(STRENGTH_LABELS.values()),
 
-            STRENGTH_LABELS.values()
-
-        ),
+        "colors":
+            STRENGTH_COLORS,
 
     }
 
@@ -184,7 +239,7 @@ def strength_info() -> Dict[str, object]:
 
 if __name__ == "__main__":
 
-    samples = [
+    passwords = [
 
         "123456",
 
@@ -204,17 +259,19 @@ if __name__ == "__main__":
 
     print("=" * 60)
 
-    for password in samples:
+    for password in passwords:
 
-        result = check_strength(password)
+        report = strength_report(password)
 
         print(
 
             f"{password:<22}"
 
-            f" Score: {result['score']}"
+            f" Score: {report['score']}"
 
-            f"  Label: {result['label']}"
+            f"  Label: {report['label']}"
+
+            f"  Strong: {report['strong']}"
 
         )
 

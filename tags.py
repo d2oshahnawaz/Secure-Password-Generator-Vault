@@ -1,11 +1,11 @@
 # =====================================================
 # PASSWORD TAGS
-# Version 4.0 Professional
+# Version 5.0 Professional
 # =====================================================
 
 from __future__ import annotations
 
-from typing import Final, List
+from typing import Dict, Final, List
 
 # =====================================================
 # DEFAULT TAGS
@@ -14,83 +14,93 @@ from typing import Final, List
 DEFAULT_TAGS: Final[List[str]] = [
 
     "Personal",
-
     "Work",
-
     "Banking",
-
     "Email",
-
     "Social Media",
-
     "Shopping",
-
     "Education",
-
     "Entertainment",
-
     "Gaming",
-
     "Developer",
-
     "Cloud",
-
     "Server",
-
     "Database",
-
     "Crypto",
-
     "Finance",
-
     "Travel",
-
     "Wi-Fi",
-
     "Business",
-
     "Custom",
 
 ]
 
+POPULAR_TAGS: Final[List[str]] = [
+
+    "Email",
+    "Banking",
+    "Developer",
+    "Cloud",
+    "Business",
+
+]
+
 # =====================================================
-# GET DEFAULT TAGS
+# DEFAULT TAGS
 # =====================================================
 
 def get_default_tags() -> List[str]:
     """
-    Return all default tags.
+    Return default tags.
     """
 
-    return DEFAULT_TAGS.copy()
-
+    return sorted(DEFAULT_TAGS.copy())
 
 # =====================================================
-# VALIDATE TAG
+# VALIDATE
 # =====================================================
 
 def validate_tag(tag: str) -> bool:
     """
-    Validate a tag.
+    Validate tag.
     """
 
     return bool(tag and tag.strip())
 
-
 # =====================================================
-# NORMALIZE TAG
+# NORMALIZE
 # =====================================================
 
 def normalize_tag(tag: str) -> str:
     """
-    Normalize a tag.
+    Normalize tag.
     """
 
     return tag.strip().title()
 
+# =====================================================
+# UNIQUE
+# =====================================================
+
+def unique_tags(
+    tags: List[str],
+) -> List[str]:
+    """
+    Remove duplicates.
+    """
+
+    return sorted({
+
+        normalize_tag(tag)
+
+        for tag in tags
+
+        if validate_tag(tag)
+
+    })
 
 # =====================================================
-# ADD TAG
+# ADD
 # =====================================================
 
 def add_tag(
@@ -98,20 +108,21 @@ def add_tag(
     tags: List[str],
 ) -> List[str]:
     """
-    Add a new tag.
+    Add tag.
     """
 
     tag = normalize_tag(tag)
 
-    if validate_tag(tag) and tag not in tags:
+    if validate_tag(tag):
 
-        tags.append(tag)
+        if tag not in tags:
 
-    return sorted(tags)
+            tags.append(tag)
 
+    return unique_tags(tags)
 
 # =====================================================
-# REMOVE TAG
+# REMOVE
 # =====================================================
 
 def remove_tag(
@@ -119,7 +130,7 @@ def remove_tag(
     tags: List[str],
 ) -> List[str]:
     """
-    Remove a tag.
+    Remove tag.
     """
 
     tag = normalize_tag(tag)
@@ -128,11 +139,10 @@ def remove_tag(
 
         tags.remove(tag)
 
-    return sorted(tags)
-
+    return unique_tags(tags)
 
 # =====================================================
-# SEARCH TAGS
+# SEARCH
 # =====================================================
 
 def search_tags(
@@ -145,7 +155,7 @@ def search_tags(
 
     keyword = keyword.lower().strip()
 
-    return [
+    return sorted([
 
         tag
 
@@ -153,38 +163,48 @@ def search_tags(
 
         if keyword in tag.lower()
 
-    ]
-
+    ])
 
 # =====================================================
-# UNIQUE TAGS
+# SUGGESTIONS
 # =====================================================
 
-def unique_tags(
-    tags: List[str],
+def suggest_tags(
+    keyword: str,
 ) -> List[str]:
     """
-    Remove duplicate tags.
+    Suggest matching default tags.
     """
 
-    return sorted(
-
-        list(
-
-            {
-
-                normalize_tag(tag)
-
-                for tag in tags
-
-                if validate_tag(tag)
-
-            }
-
-        )
-
+    return search_tags(
+        keyword,
+        get_default_tags(),
     )
 
+# =====================================================
+# POPULAR TAGS
+# =====================================================
+
+def popular_tags() -> List[str]:
+    """
+    Return popular tags.
+    """
+
+    return POPULAR_TAGS.copy()
+
+# =====================================================
+# TAG EXISTS
+# =====================================================
+
+def tag_exists(
+    tag: str,
+    tags: List[str],
+) -> bool:
+    """
+    Check whether tag exists.
+    """
+
+    return normalize_tag(tag) in unique_tags(tags)
 
 # =====================================================
 # TAG COUNT
@@ -199,6 +219,82 @@ def tag_count(
 
     return len(unique_tags(tags))
 
+# =====================================================
+# TAG CATEGORIES
+# =====================================================
+
+def tag_categories() -> Dict[str, List[str]]:
+    """
+    Return grouped tags.
+    """
+
+    return {
+
+        "Personal": [
+
+            "Personal",
+            "Education",
+            "Gaming",
+            "Entertainment",
+            "Travel",
+
+        ],
+
+        "Professional": [
+
+            "Work",
+            "Business",
+            "Developer",
+
+        ],
+
+        "Technology": [
+
+            "Cloud",
+            "Server",
+            "Database",
+            "Crypto",
+
+        ],
+
+        "Accounts": [
+
+            "Email",
+            "Banking",
+            "Finance",
+            "Shopping",
+            "Social Media",
+            "Wi-Fi",
+
+        ],
+
+    }
+
+# =====================================================
+# TAG REPORT
+# =====================================================
+
+def tag_report(
+    tags: List[str],
+) -> Dict[str, object]:
+    """
+    Return tag statistics.
+    """
+
+    tags = unique_tags(tags)
+
+    return {
+
+        "total_tags": len(tags),
+
+        "popular_tags": popular_tags(),
+
+        "available_categories":
+            list(tag_categories().keys()),
+
+        "tags": tags,
+
+    }
 
 # =====================================================
 # SELF TEST
@@ -209,19 +305,13 @@ if __name__ == "__main__":
     tags = get_default_tags()
 
     tags = add_tag(
-
         "Github",
-
         tags,
-
     )
 
     tags = add_tag(
-
         "AWS",
-
         tags,
-
     )
 
     print("=" * 60)
@@ -230,28 +320,24 @@ if __name__ == "__main__":
 
     print("=" * 60)
 
-    print("Total Tags :", tag_count(tags))
+    print(tag_report(tags))
 
     print()
 
-    print("Developer Search:")
+    print("Search 'dev'")
 
-    print(
-
-        search_tags(
-
-            "dev",
-
-            tags,
-
-        )
-
-    )
+    print(search_tags("dev", tags))
 
     print()
 
-    print("All Tags:")
+    print("Suggestions 'cl'")
 
-    print(tags)
+    print(suggest_tags("cl"))
+
+    print()
+
+    print("Categories")
+
+    print(tag_categories())
 
     print("=" * 60)

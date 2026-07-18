@@ -1,86 +1,96 @@
 # =====================================================
 # PASSWORD VAULT
-# Version 5.0 Professional
-# Part 1 / 4
+# Version 6.0 Professional
+# Part 1/5
 # =====================================================
 
 from __future__ import annotations
 
 # =====================================================
-# IMPORTS
+# STANDARD LIBRARY
 # =====================================================
 
-from typing import Final
+from datetime import datetime
+from typing import Final, Any
 
-import pyperclip
+# =====================================================
+# THIRD PARTY
+# =====================================================
+
 import streamlit as st
 
-from crypto import (
-    encrypt_password,
-    decrypt_password,
-)
+# =====================================================
+# LOCAL MODULES
+# =====================================================
+
+from crypto import encrypt_password, decrypt_password
 
 from master import (
-    master_exists,
-    set_master_password,
-    verify_master_password,
-    get_security_question,
-    verify_recovery,
-    reset_master_password,
     DEFAULT_SECURITY_QUESTIONS,
+    master_exists,
+    verify_master_password,
+    set_master_password,
+    reset_master_password,
+    verify_recovery,
+    get_security_question,
 )
 
 from database import (
     save_vault,
     get_vault,
-    search_vault,
-    delete_vault,
     update_vault,
+    delete_vault,
+    search_vault,
+    filter_category,
     toggle_favorite,
     get_favorites,
-    filter_category,
     expired_passwords,
     vault_count,
     favorite_count,
 )
 
 # =====================================================
+# MODULE INFO
+# =====================================================
+
+MODULE_NAME: Final = "Password Vault"
+
+MODULE_VERSION: Final = "6.0 Professional"
+
+# =====================================================
 # CONSTANTS
 # =====================================================
 
 CATEGORIES: Final[list[str]] = [
-
     "Email",
-
     "Banking",
-
     "Social Media",
-
     "Shopping",
-
     "Gaming",
-
     "Developer",
-
+    "Cloud",
+    "Database",
+    "Server",
     "WiFi",
-
     "Office",
-
     "Personal",
-
+    "Business",
     "Other",
-
 ]
 
-MIN_MASTER_PASSWORD_LENGTH: Final[int] = 8
+MIN_MASTER_PASSWORD_LENGTH = 8
+AUTO_LOCK_MINUTES = 10
+MAX_NOTE_LENGTH = 500
+MAX_TAG_LENGTH = 100
 
 # =====================================================
-# SESSION STATE
+# SESSION INITIALIZATION
 # =====================================================
 
 def initialize_session() -> None:
     """
-    Initialize Password Vault session state.
+    Initialize all session variables.
+    Safe to call multiple times.
     """
 
     defaults = {
@@ -89,11 +99,15 @@ def initialize_session() -> None:
 
         "editing_id": None,
 
+        "selected_password": None,
+
+        "search_keyword": "",
+
+        "selected_category": "All",
+
         "show_favorites": False,
 
         "show_expired": False,
-
-        # Recovery
 
         "show_recovery": False,
 
@@ -101,64 +115,210 @@ def initialize_session() -> None:
 
         "generated_recovery_key": "",
 
+        "last_activity": datetime.now(),
+
     }
 
     for key, value in defaults.items():
-
-        if key not in st.session_state:
-
-            st.session_state[key] = value
+        st.session_state.setdefault(key, value)
 
 
 # =====================================================
-# HELPER FUNCTIONS
+# SESSION HELPERS
 # =====================================================
 
-def copy_password(password: str) -> None:
-    """
-    Copy password to clipboard.
-    """
+def update_activity() -> None:
+    """Update last activity time."""
 
-    try:
+    st.session_state["last_activity"] = datetime.now()
 
-        pyperclip.copy(password)
 
-        st.success(
-            "Password copied successfully."
-        )
+def session_expired() -> bool:
+    """Check inactivity timeout."""
 
-    except Exception:
+    if not st.session_state.get("vault_unlocked", False):
+        return False
+
+    elapsed = (
+        datetime.now()
+        - st.session_state["last_activity"]
+    ).total_seconds()
+
+    return elapsed > AUTO_LOCK_MINUTES * 60
+
+
+def auto_lock() -> None:
+    """Automatically lock vault."""
+
+    if session_expired():
+
+        st.session_state["vault_unlocked"] = False
 
         st.warning(
-            "Clipboard is unavailable."
+            "Vault locked due to inactivity."
         )
+
+        st.rerun()
 
 
 def lock_vault() -> None:
-    """
-    Lock Password Vault.
-    """
+    """Manual lock."""
 
-    st.session_state.vault_unlocked = False
+    st.session_state["vault_unlocked"] = False
+    st.session_state["editing_id"] = None
+    st.session_state["selected_password"] = None
+    st.session_state["show_recovery"] = False
+    st.session_state["recovery_verified"] = False
 
-    st.session_state.editing_id = None
-
-    st.session_state.show_recovery = False
-
-    st.session_state.recovery_verified = False
-
-    st.success(
-        "Vault locked successfully."
-    )
+    st.success("Vault Locked Successfully.")
 
     st.rerun()
 
+
+# =====================================================
+# VALIDATION
+# =====================================================
+
+def validate_master_password(
+    password1: str,
+    password2: str,
+) -> bool:
+
+    if not password1.strip():
+
+        st.error("Master Password cannot be empty.")
+
+        return False
+
+    if len(password1) < MIN_MASTER_PASSWORD_LENGTH:
+
+        st.error(
+            f"Minimum {MIN_MASTER_PASSWORD_LENGTH} characters required."
+        )
+
+        return False
+
+    if password1 != password2:
+
+        st.error("Passwords do not match.")
+
+        return False
+
+    return True
+
+
+def validate_entry(
+    website: str,
+    username: str,
+    password: str,
+    tags: str,
+    notes: str,
+) -> bool:
+
+    if not website.strip():
+
+        st.error("Website is required.")
+
+        return False
+
+    if not username.strip():
+
+        st.error("Username is required.")
+
+        return False
+
+    if not password.strip():
+
+        st.error("Password is required.")
+
+        return False
+
+    if len(tags) > MAX_TAG_LENGTH:
+
+        st.error(
+            f"Tags cannot exceed {MAX_TAG_LENGTH} characters."
+        )
+
+        return False
+
+    if len(notes) > MAX_NOTE_LENGTH:
+
+        st.error(
+            f"Notes cannot exceed {MAX_NOTE_LENGTH} characters."
+        )
+
+        return False
+
+    return True
+
+
+# =====================================================
+# UI HELPERS
+# =====================================================
+
+def password_mask(password: str) -> str:
+    return "*" * len(password)
+
+
+def favorite_badge(favorite: bool) -> None:
+
+    if favorite:
+        st.success("★ Favorite")
+
+
+def category_badge(category: str) -> None:
+
+    st.caption(f"Category : {category}")
+
+
+def copy_button(password: str, key: str) -> None:
+    """
+    Placeholder copy button.
+    Replace later with clipboard.py if required.
+    """
+
+    st.code(password, language="text")
+
+    st.caption(
+        "Use the copy icon above."
+    )
+
+
+# =====================================================
+# MODULE INFO
+# =====================================================
+
+def module_info() -> dict[str, Any]:
+
+    return {
+
+        "module": MODULE_NAME,
+
+        "version": MODULE_VERSION,
+
+        "cloud_ready": True,
+
+        "auto_lock_minutes": AUTO_LOCK_MINUTES,
+
+    }
+    
+    # =====================================================
+# PASSWORD VAULT
+# Version 6.0 Professional
+# Part 2/5
+# Master Password + Login + Recovery
+# =====================================================
+
+# =====================================================
+# RECOVERY KEY
+# =====================================================
 
 def show_recovery_key(
     recovery_key: str,
 ) -> None:
     """
-    Display Recovery Key after setup.
+    Display Recovery Key after creating
+    Master Password.
     """
 
     st.success(
@@ -166,9 +326,8 @@ def show_recovery_key(
     )
 
     st.warning(
-        "Save this Recovery Key safely. "
-        "It will be required if you ever "
-        "forget your Master Password."
+        "Save this Recovery Key securely.\n"
+        "It can be used to recover your vault."
     )
 
     st.code(
@@ -177,68 +336,38 @@ def show_recovery_key(
     )
 
 
-def validate_master_password(
-    password1: str,
-    password2: str,
-) -> bool:
-    """
-    Validate Master Password.
-    """
-
-    if not password1.strip():
-
-        st.error(
-            "Master Password cannot be empty."
-        )
-
-        return False
-
-    if len(password1) < MIN_MASTER_PASSWORD_LENGTH:
-
-        st.error(
-            f"Master Password must contain at least "
-            f"{MIN_MASTER_PASSWORD_LENGTH} characters."
-        )
-
-        return False
-
-    if password1 != password2:
-
-        st.error(
-            "Passwords do not match."
-        )
-
-        return False
-
-    return True
-
 # =====================================================
-# MASTER PASSWORD SETUP
+# CREATE MASTER PASSWORD
 # =====================================================
 
 def setup_master_password() -> bool:
     """
-    Create Master Password if it does not exist.
+    Create Master Password if it
+    does not already exist.
     """
 
     if master_exists():
-
         return True
 
-    st.subheader("Create Master Password")
+    st.subheader(
+        "Create Master Password"
+    )
 
     st.info(
-        "Create a strong Master Password to protect your Password Vault."
+        "Create a strong Master Password "
+        "to protect your Password Vault."
     )
 
     password1 = st.text_input(
         "Master Password",
         type="password",
+        key="master_password_1",
     )
 
     password2 = st.text_input(
         "Confirm Master Password",
         type="password",
+        key="master_password_2",
     )
 
     security_question = st.selectbox(
@@ -253,18 +382,17 @@ def setup_master_password() -> bool:
 
     create_clicked = st.button(
         "Create Master Password",
+        type="primary",
         use_container_width=True,
     )
 
     if not create_clicked:
-
         return False
 
     if not validate_master_password(
         password1,
         password2,
     ):
-
         return False
 
     if not security_answer.strip():
@@ -278,122 +406,106 @@ def setup_master_password() -> bool:
     try:
 
         recovery_key = set_master_password(
-
             password=password1,
-
             security_question=security_question,
-
             security_answer=security_answer,
-
         )
 
-        st.session_state.generated_recovery_key = (
-
-            recovery_key
-
-        )
+        st.session_state[
+            "generated_recovery_key"
+        ] = recovery_key
 
         show_recovery_key(
             recovery_key
         )
 
-        st.success(
-            "Setup completed successfully."
-        )
-
-        st.info(
-            "Copy the Recovery Key before continuing."
-        )
-
         if st.button(
-            "Continue to Vault",
+            "Continue",
             use_container_width=True,
-            type="primary",
         ):
-
             st.rerun()
 
     except Exception as error:
 
-        st.error(
-            f"Unable to create Master Password.\n\n{error}"
-        )
+        st.error(str(error))
 
     return False
 
+
 # =====================================================
-# UNLOCK VAULT
+# LOGIN SCREEN
 # =====================================================
 
-def unlock_vault() -> bool:
+def login_screen() -> bool:
     """
     Unlock Password Vault.
-    Supports Master Password recovery.
     """
 
-    if st.session_state.vault_unlocked:
+    st.subheader(
+        "Unlock Password Vault"
+    )
 
-        return True
+    password = st.text_input(
+        "Master Password",
+        type="password",
+        key="vault_login_password",
+    )
 
-    st.subheader("Unlock Password Vault")
+    unlock = st.button(
+        "Unlock Vault",
+        type="primary",
+        use_container_width=True,
+    )
 
-    # =====================================================
-    # NORMAL LOGIN
-    # =====================================================
+    if unlock:
 
-    if not st.session_state.show_recovery:
+        if verify_master_password(password):
 
-        password = st.text_input(
-            "Master Password",
-            type="password",
-        )
+            st.session_state[
+                "vault_unlocked"
+            ] = True
 
-        if st.button(
-            "Unlock Vault",
-            use_container_width=True,
-            type="primary",
-        ):
+            update_activity()
 
-            if verify_master_password(password):
-
-                st.session_state.vault_unlocked = True
-
-                st.success(
-                    "Vault unlocked successfully."
-                )
-
-                st.rerun()
-
-            else:
-
-                st.error(
-                    "Incorrect Master Password."
-                )
-
-        st.divider()
-
-        if st.button(
-            "Forgot Master Password?",
-            use_container_width=True,
-        ):
-
-            st.session_state.show_recovery = True
+            st.success(
+                "Vault unlocked successfully."
+            )
 
             st.rerun()
 
-        return False
+        else:
 
-    # =====================================================
-    # RECOVERY SCREEN
-    # =====================================================
+            st.error(
+                "Incorrect Master Password."
+            )
+
+    st.divider()
+
+    if st.button(
+        "Forgot Master Password?",
+        use_container_width=True,
+    ):
+
+        st.session_state[
+            "show_recovery"
+        ] = True
+
+        st.rerun()
+
+    return False
+
+
+# =====================================================
+# RECOVERY SCREEN
+# =====================================================
+
+def recovery_screen() -> bool:
+    """
+    Verify Recovery Key.
+    """
 
     st.warning(
         "Recover Master Password"
-    )
-
-    st.info(
-        "Verify your Recovery Key and "
-        "Security Answer."
     )
 
     recovery_key = st.text_input(
@@ -408,21 +520,21 @@ def unlock_vault() -> bool:
         disabled=True,
     )
 
-    security_answer = st.text_input(
+    answer = st.text_input(
         "Security Answer",
         type="password",
     )
 
-    verify_col, cancel_col = st.columns(2)
+    left, right = st.columns(2)
 
-    with verify_col:
+    with left:
 
         verify_clicked = st.button(
-            "Verify Recovery",
+            "Verify",
             use_container_width=True,
         )
 
-    with cancel_col:
+    with right:
 
         cancel_clicked = st.button(
             "Cancel",
@@ -431,9 +543,13 @@ def unlock_vault() -> bool:
 
     if cancel_clicked:
 
-        st.session_state.show_recovery = False
+        st.session_state[
+            "show_recovery"
+        ] = False
 
-        st.session_state.recovery_verified = False
+        st.session_state[
+            "recovery_verified"
+        ] = False
 
         st.rerun()
 
@@ -441,10 +557,12 @@ def unlock_vault() -> bool:
 
         if verify_recovery(
             recovery_key,
-            security_answer,
+            answer,
         ):
 
-            st.session_state.recovery_verified = True
+            st.session_state[
+                "recovery_verified"
+            ] = True
 
             st.success(
                 "Recovery verified successfully."
@@ -456,124 +574,135 @@ def unlock_vault() -> bool:
                 "Recovery verification failed."
             )
 
-            return False
+    return st.session_state.get(
+        "recovery_verified",
+        False,
+    )
 
-    # =====================================================
-    # RESET PASSWORD
-    # =====================================================
 
-    if st.session_state.recovery_verified:
+# =====================================================
+# RESET MASTER PASSWORD
+# =====================================================
+
+def reset_password_screen() -> None:
+    """
+    Reset Master Password.
+    """
+
+    st.subheader(
+        "Reset Master Password"
+    )
+
+    password1 = st.text_input(
+        "New Master Password",
+        type="password",
+        key="reset_pass_1",
+    )
+
+    password2 = st.text_input(
+        "Confirm Password",
+        type="password",
+        key="reset_pass_2",
+    )
+
+    if st.button(
+        "Reset Password",
+        type="primary",
+        use_container_width=True,
+    ):
+
+        if not validate_master_password(
+            password1,
+            password2,
+        ):
+            return
+
+        try:
+
+            reset_master_password(
+                password1
+            )
+
+            st.success(
+                "Master Password updated successfully."
+            )
+
+            st.session_state[
+                "show_recovery"
+            ] = False
+
+            st.session_state[
+                "recovery_verified"
+            ] = False
+
+            st.session_state[
+                "vault_unlocked"
+            ] = False
+
+            st.rerun()
+
+        except Exception as error:
+
+            st.error(str(error))
+
+
+# =====================================================
+# UNLOCK VAULT
+# =====================================================
+
+def unlock_vault() -> bool:
+    """
+    Handle Vault Authentication.
+    """
+
+    auto_lock()
+
+    if st.session_state.get(
+        "vault_unlocked",
+        False,
+    ):
+
+        update_activity()
+
+        return True
+
+    if not st.session_state.get(
+        "show_recovery",
+        False,
+    ):
+
+        return login_screen()
+
+    verified = recovery_screen()
+
+    if verified:
 
         st.divider()
 
-        st.subheader(
-            "Reset Master Password"
-        )
-
-        new_password = st.text_input(
-            "New Master Password",
-            type="password",
-        )
-
-        confirm_password = st.text_input(
-            "Confirm New Password",
-            type="password",
-        )
-
-        if st.button(
-            "Reset Password",
-            use_container_width=True,
-            type="primary",
-        ):
-
-            if not validate_master_password(
-                new_password,
-                confirm_password,
-            ):
-
-                return False
-
-            try:
-
-                reset_master_password(
-                    new_password
-                )
-
-                st.success(
-                    "Master Password reset successfully."
-                )
-
-                st.session_state.show_recovery = False
-
-                st.session_state.recovery_verified = False
-
-                st.rerun()
-
-            except Exception as error:
-
-                st.error(
-                    f"Unable to reset password.\n\n{error}"
-                )
+        reset_password_screen()
 
     return False
 
 # =====================================================
-# MAIN VAULT
+# PASSWORD VAULT
+# Version 6.0 Professional
+# Part 3A/5
+# Add Password + Search + Filters
 # =====================================================
 
-def show_vault() -> None:
+# =====================================================
+# ADD PASSWORD FORM
+# =====================================================
+
+def render_add_password() -> None:
     """
-    Main Password Vault UI.
+    Render Add Password form.
     """
-
-    initialize_session()
-
-    st.title("Password Vault")
-
-    if not setup_master_password():
-        return
-
-    if not unlock_vault():
-        return
-
-    # =====================================================
-    # DASHBOARD
-    # =====================================================
-
-    total_passwords = vault_count()
-    favorites = favorite_count()
-    expired = len(expired_passwords())
-
-    metric1, metric2, metric3 = st.columns(3)
-
-    with metric1:
-        st.metric(
-            "Stored Passwords",
-            total_passwords,
-        )
-
-    with metric2:
-        st.metric(
-            "Favorites",
-            favorites,
-        )
-
-    with metric3:
-        st.metric(
-            "Expired",
-            expired,
-        )
-
-    st.divider()
-
-    # =====================================================
-    # ADD PASSWORD
-    # =====================================================
 
     st.subheader("Add New Password")
 
     with st.form(
-        "vault_form",
+        "vault_add_form",
         clear_on_submit=True,
     ):
 
@@ -599,157 +728,163 @@ def show_vault() -> None:
 
         tags = st.text_input(
             "Tags",
-            placeholder="Work, Office, Personal",
+            placeholder="Work, Personal",
         )
 
         notes = st.text_area(
             "Notes",
-            placeholder="Optional notes...",
+            max_chars=MAX_NOTE_LENGTH,
         )
 
         favorite = st.checkbox(
-            "Mark as Favorite"
+            "Favorite"
         )
 
-        expiry_date = st.date_input(
-            "Password Expiry Date",
+        expiry = st.date_input(
+            "Expiry Date",
             value=None,
         )
 
         submitted = st.form_submit_button(
             "Save Password",
+            type="primary",
             use_container_width=True,
         )
 
-    # =====================================================
-    # SAVE PASSWORD
-    # =====================================================
+    if not submitted:
+        return
 
-    if submitted:
+    update_activity()
 
-        website = website.strip()
-        username = username.strip()
-        password = password.strip()
-        tags = tags.strip()
-        notes = notes.strip()
+    if not validate_entry(
+        website,
+        username,
+        password,
+        tags,
+        notes,
+    ):
+        return
 
-        if not website:
+    try:
 
-            st.error(
-                "Website is required."
-            )
+        encrypted = encrypt_password(
+            password.strip()
+        )
 
-        elif not username:
+        save_vault(
+            website=website.strip(),
+            username=username.strip(),
+            encrypted_password=encrypted,
+            category=category,
+            tags=tags.strip(),
+            notes=notes.strip(),
+            favorite=int(favorite),
+            expiry_date=(
+                expiry.isoformat()
+                if expiry
+                else None
+            ),
+        )
 
-            st.error(
-                "Username is required."
-            )
+        st.success(
+            "Password saved successfully."
+        )
 
-        elif not password:
+        st.rerun()
 
-            st.error(
-                "Password is required."
-            )
+    except Exception as error:
 
-        else:
+        st.error(
+            f"Unable to save password.\n\n{error}"
+        )
 
-            try:
 
-                encrypted_password = encrypt_password(
-                    password
-                )
+# =====================================================
+# SEARCH & FILTERS
+# =====================================================
 
-                save_vault(
-
-                    website=website,
-
-                    username=username,
-
-                    encrypted_password=encrypted_password,
-
-                    category=category,
-
-                    tags=tags,
-
-                    notes=notes,
-
-                    favorite=int(favorite),
-
-                    expiry_date=(
-                        expiry_date.isoformat()
-                        if expiry_date
-                        else None
-                    ),
-
-                )
-
-                st.success(
-                    "Password saved successfully."
-                )
-
-                st.rerun()
-
-            except Exception as error:
-
-                st.error(
-                    f"Failed to save password.\n\n{error}"
-                )
+def render_search_filters() -> list:
+    """
+    Render Search + Filter section
+    and return filtered records.
+    """
 
     st.divider()
 
-    # =====================================================
-    # SEARCH & FILTER
-    # =====================================================
-
     st.subheader("Search Passwords")
 
-    keyword = st.text_input(
+    search_text = st.text_input(
         "Search",
-        placeholder="Search by website, username, category or tags...",
+        value=st.session_state.get(
+            "search_keyword",
+            "",
+        ),
+        placeholder="Website, Username, Category...",
     )
 
-    filter_col1, filter_col2, filter_col3 = st.columns(3)
+    st.session_state.search_keyword = search_text
 
-    with filter_col1:
+    col1, col2, col3 = st.columns(3)
 
-        show_all = st.button(
-            "All Passwords",
+    with col1:
+
+        if st.button(
+            "All",
             use_container_width=True,
-        )
+        ):
 
-    with filter_col2:
+            st.session_state.show_favorites = False
+            st.session_state.show_expired = False
 
-        show_favorites = st.button(
+    with col2:
+
+        if st.button(
             "Favorites",
             use_container_width=True,
-        )
+        ):
 
-    with filter_col3:
+            st.session_state.show_favorites = True
+            st.session_state.show_expired = False
 
-        show_expired = st.button(
+    with col3:
+
+        if st.button(
             "Expired",
             use_container_width=True,
-        )
+        ):
 
-    # =====================================================
-    # LOAD PASSWORDS
-    # =====================================================
+            st.session_state.show_expired = True
+            st.session_state.show_favorites = False
 
-    rows = []
+    category_filter = [
+        "All",
+        *CATEGORIES,
+    ]
 
-    if keyword.strip():
+    selected_category = st.selectbox(
+        "Category Filter",
+        category_filter,
+        index=category_filter.index(
+            st.session_state.get(
+                "selected_category",
+                "All",
+            )
+        ),
+    )
+
+    st.session_state.selected_category = (
+        selected_category
+    )
+
+    # ----------------------------
+    # Fetch records
+    # ----------------------------
+
+    if search_text.strip():
 
         rows = search_vault(
-            keyword.strip()
+            search_text.strip()
         )
-
-    elif show_favorites:
-
-        rows = get_favorites()
-
-    elif show_expired:
-
-        rows = expired_passwords()
 
     elif st.session_state.show_favorites:
 
@@ -759,33 +894,50 @@ def show_vault() -> None:
 
         rows = expired_passwords()
 
+    elif selected_category != "All":
+
+        rows = filter_category(
+            selected_category
+        )
+
     else:
 
         rows = get_vault()
 
-    if show_all:
+    return rows
 
-        st.session_state.show_favorites = False
 
-        st.session_state.show_expired = False
+# =====================================================
+# MAIN CRUD VIEW
+# =====================================================
 
-        rows = get_vault()
+def render_vault_crud() -> list:
+    """
+    Add Password + Search Filters.
+    Returns vault rows.
+    """
 
-    elif show_favorites:
+    render_add_password()
 
-        st.session_state.show_favorites = True
-
-        st.session_state.show_expired = False
-
-    elif show_expired:
-
-        st.session_state.show_expired = True
-
-        st.session_state.show_favorites = False
+    rows = render_search_filters()
 
     st.divider()
 
     st.subheader("Stored Passwords")
+
+    return rows
+
+# =====================================================
+# PASSWORD VAULT
+# Version 6.0 Professional
+# Part 3B-1/5
+# Password List + Reveal + Favorite
+# =====================================================
+
+def render_password_cards(rows: list) -> None:
+    """
+    Display all stored passwords.
+    """
 
     if not rows:
 
@@ -795,79 +947,61 @@ def show_vault() -> None:
 
         return
 
-    else:
-    
-        for row in rows:
+    for row in rows:
 
-            (
-                vault_id,
-                website,
-                username,
-                encrypted_password,
-                category,
-                tags,
-                notes,
-                favorite,
-                expiry,
-                created,
-                updated,
-            ) = row
+        (
+            vault_id,
+            website,
+            username,
+            encrypted_password,
+            category,
+            tags,
+            notes,
+            favorite,
+            expiry,
+            created,
+            updated,
+        ) = row
 
-            try:
+        # ---------------------------------------
+        # Decrypt Password
+        # ---------------------------------------
 
-                password = decrypt_password(
-                    encrypted_password
+        try:
+
+            password = decrypt_password(
+                encrypted_password
+            )
+
+        except Exception:
+
+            password = "[Unable to decrypt]"
+
+        # ---------------------------------------
+        # Password Card
+        # ---------------------------------------
+
+        with st.container(border=True):
+
+            left, right = st.columns([8, 1])
+
+            with left:
+
+                st.subheader(website)
+
+                category_badge(category)
+
+            with right:
+
+                favorite_badge(bool(favorite))
+
+            info1, info2 = st.columns(2)
+
+            with info1:
+
+                st.write(
+                    f"**Username:** {username}"
                 )
-
-            except Exception:
-
-                password = "[Unable to decrypt]"
-
-            with st.container(border=True):
-
-                # ==========================================
-                # HEADER
-                # ==========================================
-
-                left, right = st.columns([6, 1])
-
-                with left:
-
-                    st.subheader(website)
-
-                with right:
-
-                    if favorite:
-
-                        st.success("Favorite")
-
-                # ==========================================
-                # DETAILS
-                # ==========================================
-
-                info1, info2 = st.columns(2)
-
-                with info1:
-
-                    st.write(
-                        f"**Username:** {username}"
-                    )
-
-                    st.write(
-                        f"**Category:** {category}"
-                    )
-
-                with info2:
-
-                    if expiry:
-
-                        st.write(
-                            f"**Expiry:** {expiry}"
-                        )
-
-                    st.write(
-                        f"**Created:** {created}"
-                    )
 
                 if tags:
 
@@ -875,407 +1009,417 @@ def show_vault() -> None:
                         f"Tags: {tags}"
                     )
 
-                if notes:
+            with info2:
 
-                    st.info(notes)
+                if expiry:
+
+                    st.write(
+                        f"**Expiry:** {expiry}"
+                    )
 
                 if updated:
 
                     st.caption(
-                        f"Last Updated: {updated}"
+                        f"Updated: {updated}"
                     )
 
-                # ==========================================
-                # PASSWORD
-                # ==========================================
+            if notes:
 
-                reveal = st.toggle(
+                st.info(notes)
 
-                    "Show Password",
+            # ---------------------------------------
+            # Password Reveal
+            # ---------------------------------------
 
-                    key=f"show_{vault_id}",
+            reveal = st.toggle(
+                "Show Password",
+                key=f"show_{vault_id}",
+            )
 
+            if reveal:
+
+                copy_button(
+                    password,
+                    key=f"copy_{vault_id}",
                 )
 
-                if reveal:
+            else:
 
-                    st.code(
-                        password,
-                        language="text",
+                st.code(
+                    password_mask(password),
+                    language="text",
+                )
+
+            # ---------------------------------------
+            # Action Buttons
+            # ---------------------------------------
+
+            col1, col2, col3 = st.columns(3)
+
+            # Favorite
+            with col1:
+
+                if st.button(
+                    "⭐ Favorite",
+                    key=f"fav_{vault_id}",
+                    use_container_width=True,
+                ):
+
+                    toggle_favorite(
+                        vault_id
                     )
 
-                else:
+                    st.rerun()
 
-                    st.code(
-                        "*" * len(password),
-                        language="text",
+            # Edit
+            with col2:
+
+                if st.button(
+                    "✏ Edit",
+                    key=f"edit_{vault_id}",
+                    use_container_width=True,
+                ):
+
+                    st.session_state.editing_id = (
+                        vault_id
                     )
 
-                # ==========================================
-                # ACTION BUTTONS
-                # ==========================================
+                    st.rerun()
 
-                action1, action2, action3, action4 = st.columns(4)
+            # Delete
+            with col3:
 
-                with action1:
+                if st.button(
+                    "🗑 Delete",
+                    key=f"delete_{vault_id}",
+                    use_container_width=True,
+                ):
 
-                    if st.button(
+                    st.session_state[
+                        "delete_id"
+                    ] = vault_id
 
-                        "Copy",
+                    st.rerun()
+                    
+# =====================================================
+# PASSWORD VAULT
+# Version 6.0 Professional
+# Part 3B-2/5
+# Edit + Delete
+# =====================================================
 
-                        key=f"copy_{vault_id}",
+            # ==========================================
+            # EDIT PASSWORD
+            # ==========================================
 
-                        use_container_width=True,
+            if st.session_state.get(
+                "editing_id"
+            ) == vault_id:
 
-                    ):
+                st.warning(
+                    "Edit Password"
+                )
 
-                        copy_password(password)
+                with st.form(
+                    f"edit_form_{vault_id}"
+                ):
 
-                with action2:
+                    new_website = st.text_input(
+                        "Website",
+                        value=website,
+                    )
 
-                    if st.button(
+                    new_username = st.text_input(
+                        "Username",
+                        value=username,
+                    )
 
+                    new_password = st.text_input(
+                        "Password",
+                        value=password,
+                        type="password",
+                    )
+
+                    new_category = st.selectbox(
+                        "Category",
+                        CATEGORIES,
+                        index=(
+                            CATEGORIES.index(category)
+                            if category in CATEGORIES
+                            else 0
+                        ),
+                    )
+
+                    new_tags = st.text_input(
+                        "Tags",
+                        value=tags or "",
+                    )
+
+                    new_notes = st.text_area(
+                        "Notes",
+                        value=notes or "",
+                        max_chars=MAX_NOTE_LENGTH,
+                    )
+
+                    new_favorite = st.checkbox(
                         "Favorite",
+                        value=bool(favorite),
+                    )
 
-                        key=f"favorite_{vault_id}",
+                    save_col, cancel_col = st.columns(2)
 
-                        use_container_width=True,
+                    with save_col:
 
-                    ):
-
-                        toggle_favorite(
-                            vault_id
-                        )
-
-                        st.rerun()
-
-                with action3:
-
-                    if st.button(
-
-                        "Edit",
-
-                        key=f"edit_{vault_id}",
-
-                        use_container_width=True,
-
-                    ):
-
-                        st.session_state.editing_id = (
-                            vault_id
-                        )
-
-                        st.rerun()
-
-                with action4:
-
-                    if st.button(
-
-                        "Delete",
-
-                        key=f"delete_{vault_id}",
-
-                        use_container_width=True,
-
-                    ):
-
-                        delete_vault(
-                            vault_id
-                        )
-
-                        st.success(
-                            "Password deleted successfully."
-                        )
-
-                        st.rerun()
-
-                # ==========================================
-                # EDIT PASSWORD
-                # ==========================================
-
-                if st.session_state.editing_id == vault_id:
-
-                    st.warning("Edit Password")
-
-                    with st.form(
-                        f"edit_form_{vault_id}"
-                    ):
-
-                        new_website = st.text_input(
-                            "Website / Application",
-                            value=website,
-                        )
-
-                        new_username = st.text_input(
-                            "Username / Email",
-                            value=username,
-                        )
-
-                        new_password = st.text_input(
-                            "Password",
-                            value=password,
-                            type="password",
-                        )
-
-                        if category in CATEGORIES:
-                            category_index = CATEGORIES.index(category)
-                        else:
-                            category_index = 0
-
-                        new_category = st.selectbox(
-                            "Category",
-                            CATEGORIES,
-                            index=category_index,
-                        )
-
-                        new_tags = st.text_input(
-                            "Tags",
-                            value=tags or "",
-                        )
-
-                        new_notes = st.text_area(
-                            "Notes",
-                            value=notes or "",
-                        )
-
-                        new_favorite = st.checkbox(
-                            "Favorite",
-                            value=bool(favorite),
-                        )
-
-                        new_expiry = st.text_input(
-                            "Expiry Date (YYYY-MM-DD)",
-                            value=expiry or "",
-                        )
-
-                        save_col, cancel_col = st.columns(2)
-
-                        with save_col:
-
-                            update_clicked = st.form_submit_button(
+                        update_clicked = (
+                            st.form_submit_button(
                                 "Update Password",
+                                type="primary",
                                 use_container_width=True,
                             )
+                        )
 
-                        with cancel_col:
+                    with cancel_col:
 
-                            cancel_clicked = st.form_submit_button(
+                        cancel_clicked = (
+                            st.form_submit_button(
                                 "Cancel",
                                 use_container_width=True,
                             )
+                        )
 
-                    # ======================================
-                    # UPDATE PASSWORD
-                    # ======================================
+                if cancel_clicked:
 
-                    if update_clicked:
+                    st.session_state.editing_id = None
 
-                        new_website = new_website.strip()
-                        new_username = new_username.strip()
-                        new_password = new_password.strip()
-                        new_tags = new_tags.strip()
-                        new_notes = new_notes.strip()
-                        new_expiry = new_expiry.strip()
+                    st.rerun()
 
-                        if not new_website:
+                if update_clicked:
 
-                            st.error(
-                                "Website is required."
+                    if validate_entry(
+                        new_website,
+                        new_username,
+                        new_password,
+                        new_tags,
+                        new_notes,
+                    ):
+
+                        try:
+
+                            encrypted = encrypt_password(
+                                new_password.strip()
                             )
 
-                        elif not new_username:
-
-                            st.error(
-                                "Username is required."
+                            update_vault(
+                                vault_id,
+                                new_website.strip(),
+                                new_username.strip(),
+                                encrypted,
+                                new_category,
+                                new_tags.strip(),
+                                new_notes.strip(),
+                                int(new_favorite),
+                                expiry,
                             )
 
-                        elif not new_password:
-
-                            st.error(
-                                "Password is required."
+                            st.success(
+                                "Password updated successfully."
                             )
 
-                        else:
+                            st.session_state.editing_id = None
 
-                            try:
+                            st.rerun()
 
-                                encrypted = encrypt_password(
-                                    new_password
-                                )
+                        except Exception as error:
 
-                                update_vault(
+                            st.error(
+                                f"Unable to update password.\n\n{error}"
+                            )
 
-                                    vault_id,
+            # ==========================================
+            # DELETE PASSWORD
+            # ==========================================
 
-                                    new_website,
+            if (
+                st.session_state.get("delete_id")
+                == vault_id
+            ):
 
-                                    new_username,
+                st.error(
+                    f"Delete '{website}' ?"
+                )
 
-                                    encrypted,
+                yes_col, no_col = st.columns(2)
 
-                                    new_category,
+                with yes_col:
 
-                                    new_tags,
+                    if st.button(
+                        "Yes, Delete",
+                        key=f"yes_delete_{vault_id}",
+                        type="primary",
+                        use_container_width=True,
+                    ):
 
-                                    new_notes,
+                        try:
 
-                                    int(new_favorite),
+                            delete_vault(
+                                vault_id
+                            )
 
-                                    new_expiry if new_expiry else None,
+                            st.success(
+                                "Password deleted successfully."
+                            )
 
-                                )
+                            st.session_state.delete_id = None
 
-                                st.session_state.editing_id = None
+                            st.rerun()
 
-                                st.success(
-                                    "Password updated successfully."
-                                )
+                        except Exception as error:
 
-                                st.rerun()
+                            st.error(str(error))
 
-                            except Exception as error:
+                with no_col:
 
-                                st.error(
-                                    f"Unable to update password.\n\n{error}"
-                                )
+                    if st.button(
+                        "Cancel",
+                        key=f"cancel_delete_{vault_id}",
+                        use_container_width=True,
+                    ):
 
-                    # ======================================
-                    # CANCEL EDIT
-                    # ======================================
-
-                    if cancel_clicked:
-
-                        st.session_state.editing_id = None
+                        st.session_state.delete_id = None
 
                         st.rerun()
 
+
+# =====================================================
+# MAIN PASSWORD LIST
+# =====================================================
+
+def render_password_list() -> None:
+    """
+    Render complete password list.
+    """
+
+    rows = render_vault_crud()
+
+    render_password_cards(rows)
+    
     # =====================================================
-    # VAULT SUMMARY
-    # =====================================================
+# PASSWORD VAULT
+# Version 6.0 Professional
+# Part 3C/5
+# Dashboard + Main Entry
+# =====================================================
+
+# =====================================================
+# DASHBOARD
+# =====================================================
+
+def render_dashboard() -> None:
+    """
+    Vault dashboard.
+    """
 
     st.divider()
 
-    st.subheader("Vault Summary")
+    st.subheader("Vault Dashboard")
 
-    summary1, summary2, summary3 = st.columns(3)
+    total = vault_count()
+    favorites = favorite_count()
+    expired = len(expired_passwords())
 
-    with summary1:
-        st.metric(
-            "Stored Passwords",
-            vault_count(),
-        )
+    health_score = 100
 
-    with summary2:
-        st.metric(
-            "Favorites",
-            favorite_count(),
-        )
+    if total == 0:
+        health_score -= 40
 
-    with summary3:
-        st.metric(
-            "Expired",
-            len(expired_passwords()),
-        )
+    if expired > 0:
+        health_score -= min(expired * 5, 30)
 
-    st.divider()
+    if favorites == 0:
+        health_score -= 10
 
-    # =====================================================
-    # QUICK ACTIONS
-    # =====================================================
+    health_score = max(health_score, 0)
 
-    st.subheader("Quick Actions")
+    c1, c2, c3, c4 = st.columns(4)
 
-    action1, action2, action3 = st.columns(3)
+    c1.metric("Passwords", total)
+    c2.metric("Favorites", favorites)
+    c3.metric("Expired", expired)
+    c4.metric("Health", f"{health_score}/100")
 
-    with action1:
-
-        if st.button(
-            "Show Favorites",
-            use_container_width=True,
-        ):
-
-            st.session_state.show_favorites = True
-            st.session_state.show_expired = False
-            st.rerun()
-
-    with action2:
-
-        if st.button(
-            "Show Expired",
-            use_container_width=True,
-        ):
-
-            st.session_state.show_expired = True
-            st.session_state.show_favorites = False
-            st.rerun()
-
-    with action3:
-
-        if st.button(
-            "Show All",
-            use_container_width=True,
-        ):
-
-            st.session_state.show_favorites = False
-            st.session_state.show_expired = False
-            st.rerun()
+    st.progress(health_score / 100)
 
     st.divider()
 
-    # =====================================================
-    # SECURITY INFORMATION
-    # =====================================================
+    st.subheader("Security Recommendations")
 
-    with st.expander(
-        "Password Vault Security",
-        expanded=False,
-    ):
+    recommendations = [
 
-        st.markdown(
-            """
-### Security Features
+        "Use a unique password for every account.",
 
-- AES Encrypted Password Storage
-- Master Password Protection
-- Recovery Key Support
-- Security Question Verification
-- Secure Password Decryption
-- Search & Filter
-- Password Categories
-- Password Expiry Tracking
-- Clipboard Copy Support
-- Edit & Delete Passwords
+        "Enable Multi-Factor Authentication.",
 
----
+        "Change expired passwords immediately.",
 
-### Security Tips
+        "Store your Recovery Key offline.",
 
-- Never share your Master Password.
-- Store your Recovery Key offline.
-- Use a unique password for every account.
-- Enable Multi-Factor Authentication (MFA).
-- Rotate important passwords regularly.
-- Backup your encrypted database.
-- Delete passwords you no longer use.
+        "Review your vault regularly.",
 
----
+        "Delete unused accounts.",
 
-### Dashboard Metrics
+    ]
 
-The vault dashboard displays:
+    for item in recommendations:
 
-- Total Stored Passwords
-- Favorite Password Count
-- Expired Password Count
-- Search & Filter Status
+        st.markdown(f"- {item}")
+
+
+# =====================================================
+# ABOUT
+# =====================================================
+
+def about() -> None:
+
+    st.divider()
+
+    st.subheader("About")
+
+    st.info(
+        f"""
+**{MODULE_NAME}**
+
+Version : {MODULE_VERSION}
+
+Features
+
+• Master Password
+
+• AES Encryption
+
+• Recovery Key
+
+• Categories
+
+• Search
+
+• Favorites
+
+• Dashboard
+
+• Auto Lock
+
+• Streamlit Cloud Ready
 """
-        )
+    )
+
+
+# =====================================================
+# FOOTER
+# =====================================================
+
+def footer() -> None:
 
     st.divider()
-
-    # =====================================================
-    # LOCK VAULT
-    # =====================================================
 
     if st.button(
         "Lock Vault",
@@ -1285,12 +1429,532 @@ The vault dashboard displays:
 
         lock_vault()
 
+    st.caption(
+        f"{MODULE_NAME} | Version {MODULE_VERSION}"
+    )
+
+
+# =====================================================
+# MAIN FUNCTION
+# =====================================================
+
+def show_vault() -> None:
+    """
+    Main Password Vault UI.
+    """
+
+    initialize_session()
+
+    auto_lock()
+
+    # ----------------------------
+    # First-time setup
+    # ----------------------------
+
+    if not setup_master_password():
+        return
+
+    # ----------------------------
+    # Login
+    # ----------------------------
+
+    if not unlock_vault():
+        return
+
+    update_activity()
+
+    # ----------------------------
+    # Main UI
+    # ----------------------------
+
+    render_password_list()
+
+    render_dashboard()
+
+    about()
+
+    footer()
+
+
+# =====================================================
+# DIAGNOSTICS
+# =====================================================
+
+def diagnostics() -> dict[str, Any]:
+
+    return {
+
+        "module": MODULE_NAME,
+
+        "version": MODULE_VERSION,
+
+        "vault_unlocked": st.session_state.get(
+            "vault_unlocked",
+            False,
+        ),
+
+        "total_passwords": vault_count(),
+
+        "favorites": favorite_count(),
+
+        "expired": len(expired_passwords()),
+
+        "auto_lock": AUTO_LOCK_MINUTES,
+
+    }
+
+
+# =====================================================
+# MODULE INFORMATION
+# =====================================================
+
+def module_information() -> dict[str, Any]:
+
+    return {
+
+        "name": MODULE_NAME,
+
+        "version": MODULE_VERSION,
+
+        "cloud_ready": True,
+
+        "streamlit": True,
+
+        "python": "3.11+",
+
+    }
+
+
+# =====================================================
+# SELF TEST
+# =====================================================
+
+def run_self_test() -> bool:
+
+    try:
+
+        assert isinstance(CATEGORIES, list)
+
+        assert MIN_MASTER_PASSWORD_LENGTH >= 8
+
+        assert AUTO_LOCK_MINUTES > 0
+
+        return True
+
+    except Exception:
+
+        return False
+
+
+# =====================================================
+# MAIN
+# =====================================================
+
+if __name__ == "__main__":
+
+    if run_self_test():
+
+        show_vault()
+
+    else:
+
+        st.error(
+            "Vault self-test failed."
+        )
+        
+        # =====================================================
+# PASSWORD VAULT
+# Version 6.0 Professional
+# Part 4/5
+# Export • Backup • Utilities
+# =====================================================
+
+import json
+import pandas as pd
+
+# =====================================================
+# EXPORT CSV
+# =====================================================
+
+def export_csv() -> None:
+    """
+    Export vault to CSV.
+    """
+
+    rows = get_vault()
+
+    if not rows:
+        st.info("No passwords available.")
+        return
+
+    data = []
+
+    for row in rows:
+
+        (
+            vault_id,
+            website,
+            username,
+            encrypted_password,
+            category,
+            tags,
+            notes,
+            favorite,
+            expiry,
+            created,
+            updated,
+        ) = row
+
+        try:
+            password = decrypt_password(
+                encrypted_password
+            )
+        except Exception:
+            password = ""
+
+        data.append(
+            {
+                "Website": website,
+                "Username": username,
+                "Password": password,
+                "Category": category,
+                "Tags": tags,
+                "Notes": notes,
+                "Favorite": bool(favorite),
+                "Expiry": expiry,
+                "Created": created,
+                "Updated": updated,
+            }
+        )
+
+    df = pd.DataFrame(data)
+
+    st.download_button(
+        "⬇ Download CSV",
+        df.to_csv(index=False),
+        file_name="password_vault.csv",
+        mime="text/csv",
+    )
+
+
+# =====================================================
+# EXPORT JSON
+# =====================================================
+
+def export_json() -> None:
+
+    rows = get_vault()
+
+    if not rows:
+        return
+
+    data = []
+
+    for row in rows:
+
+        (
+            vault_id,
+            website,
+            username,
+            encrypted_password,
+            category,
+            tags,
+            notes,
+            favorite,
+            expiry,
+            created,
+            updated,
+        ) = row
+
+        try:
+            password = decrypt_password(
+                encrypted_password
+            )
+        except Exception:
+            password = ""
+
+        data.append(
+            {
+                "website": website,
+                "username": username,
+                "password": password,
+                "category": category,
+                "tags": tags,
+                "notes": notes,
+                "favorite": bool(favorite),
+                "expiry": expiry,
+            }
+        )
+
+    st.download_button(
+        "⬇ Download JSON",
+        json.dumps(data, indent=4),
+        file_name="password_vault.json",
+        mime="application/json",
+    )
+
+
+# =====================================================
+# BACKUP SECTION
+# =====================================================
+
+def render_backup_section():
+
     st.divider()
 
-    # =====================================================
-    # FOOTER
-    # =====================================================
+    st.subheader("Backup & Export")
+
+    c1, c2 = st.columns(2)
+
+    with c1:
+        export_csv()
+
+    with c2:
+        export_json()
+
+
+# =====================================================
+# QUICK STATS
+# =====================================================
+
+def quick_statistics():
+
+    st.divider()
+
+    st.subheader("Quick Statistics")
+
+    st.write(f"Stored Passwords : {vault_count()}")
+
+    st.write(f"Favorites : {favorite_count()}")
+
+    st.write(
+        f"Expired : {len(expired_passwords())}"
+    )
+
+
+# =====================================================
+# VERSION
+# =====================================================
+
+def version():
 
     st.caption(
-        "Smart Password Generator & Vault • Version 5.0 Professional"
+        f"{MODULE_NAME} | {MODULE_VERSION}"
     )
+    
+    # =====================================================
+# PASSWORD VAULT
+# Version 6.0 Professional
+# Part 5/5
+# Final Utilities
+# =====================================================
+
+from typing import Any
+
+# =====================================================
+# SETTINGS
+# =====================================================
+
+def render_settings() -> None:
+    """
+    Vault settings.
+    """
+
+    st.divider()
+
+    st.subheader("Settings")
+
+    auto_lock_enabled = st.toggle(
+        "Enable Auto Lock",
+        value=True,
+        disabled=True,
+    )
+
+    cloud_ready = st.toggle(
+        "Streamlit Cloud Compatible",
+        value=True,
+        disabled=True,
+    )
+
+    encryption = st.toggle(
+        "AES Encryption Enabled",
+        value=True,
+        disabled=True,
+    )
+
+    st.caption(
+        "These settings are currently managed automatically."
+    )
+
+
+# =====================================================
+# DIAGNOSTICS
+# =====================================================
+
+def diagnostics() -> dict[str, Any]:
+    """
+    Return module diagnostics.
+    """
+
+    return {
+
+        "module": MODULE_NAME,
+
+        "version": MODULE_VERSION,
+
+        "master_exists": master_exists(),
+
+        "vault_unlocked":
+            st.session_state.get(
+                "vault_unlocked",
+                False,
+            ),
+
+        "total_passwords":
+            vault_count(),
+
+        "favorites":
+            favorite_count(),
+
+        "expired":
+            len(
+                expired_passwords()
+            ),
+
+        "categories":
+            len(
+                CATEGORIES
+            ),
+
+        "auto_lock_minutes":
+            AUTO_LOCK_MINUTES,
+
+    }
+
+
+# =====================================================
+# DIAGNOSTICS PANEL
+# =====================================================
+
+def diagnostics_panel() -> None:
+    """
+    Display diagnostics.
+    """
+
+    st.divider()
+
+    with st.expander(
+        "Diagnostics",
+        expanded=False,
+    ):
+
+        info = diagnostics()
+
+        for key, value in info.items():
+
+            st.write(
+                f"**{key}** : {value}"
+            )
+
+
+# =====================================================
+# MODULE INFORMATION
+# =====================================================
+
+def module_information() -> dict[str, Any]:
+
+    return {
+
+        "name":
+            MODULE_NAME,
+
+        "version":
+            MODULE_VERSION,
+
+        "status":
+            "Production",
+
+        "author":
+            "Tech Education World",
+
+        "python":
+            "3.11+",
+
+        "streamlit":
+            True,
+
+        "cloud_ready":
+            True,
+
+    }
+
+
+# =====================================================
+# SELF TEST
+# =====================================================
+
+def run_self_test() -> bool:
+    """
+    Basic validation.
+    """
+
+    try:
+
+        assert isinstance(
+            CATEGORIES,
+            list,
+        )
+
+        assert len(
+            CATEGORIES
+        ) > 0
+
+        assert (
+            MIN_MASTER_PASSWORD_LENGTH
+            >= 8
+        )
+
+        assert (
+            AUTO_LOCK_MINUTES
+            > 0
+        )
+
+        assert isinstance(
+            module_information(),
+            dict,
+        )
+
+        return True
+
+    except Exception:
+
+        return False
+
+
+# =====================================================
+# APPLICATION
+# =====================================================
+
+def run_application() -> None:
+    """
+    Launch Password Vault.
+    """
+
+    show_vault()
+
+
+# =====================================================
+# ENTRY POINT
+# =====================================================
+
+if __name__ == "__main__":
+
+    if run_self_test():
+
+        run_application()
+
+    else:
+
+        st.error(
+            "Vault self-test failed."
+        )

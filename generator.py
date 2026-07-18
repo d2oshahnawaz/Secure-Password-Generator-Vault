@@ -1,7 +1,10 @@
 # =====================================================
 # PASSWORD GENERATOR
-# Version 4.0 Professional
+# Version 5.0 Professional
+# Part 1/4
 # =====================================================
+
+from __future__ import annotations
 
 # -----------------------------------------------------
 # Standard Library
@@ -9,7 +12,9 @@
 
 import secrets
 import string
-from typing import Dict, List
+from typing import Dict
+from typing import Final
+from typing import List
 
 # -----------------------------------------------------
 # Local Modules
@@ -21,19 +26,59 @@ import templates
 # CONSTANTS
 # =====================================================
 
-DEFAULT_LETTERS = "User"
+DEFAULT_LETTERS: Final[str] = "User"
 
-DEFAULT_NUMBERS = "123"
+DEFAULT_NUMBERS: Final[str] = "123"
 
-SPECIAL_CHARACTERS = "@#$%&*+"
+DEFAULT_LENGTH: Final[int] = 16
 
-SIMILAR_CHARACTERS = "O0Il1"
+MIN_PASSWORD_LENGTH: Final[int] = 8
+
+MAX_PASSWORD_LENGTH: Final[int] = 128
+
+DEFAULT_COUNT: Final[int] = 10
+
+MAX_PASSWORD_COUNT: Final[int] = 100
+
+SPECIAL_CHARACTERS: Final[str] = (
+    "@#$%&*+-_=!?~"
+)
+
+SIMILAR_CHARACTERS: Final[str] = (
+    "O0oIl1|"
+)
+
+UPPERCASE: Final[str] = (
+    string.ascii_uppercase
+)
+
+LOWERCASE: Final[str] = (
+    string.ascii_lowercase
+)
+
+DIGITS: Final[str] = (
+    string.digits
+)
 
 # =====================================================
-# HELPER FUNCTIONS
+# INPUT HELPERS
 # =====================================================
 
-def extract_letters(text: str) -> str:
+def sanitize_text(
+    text: str,
+) -> str:
+    """
+    Remove leading/trailing spaces.
+    """
+
+    return text.strip()
+
+
+# -----------------------------------------------------
+
+def extract_letters(
+    text: str,
+) -> str:
     """
     Extract alphabetic characters.
     """
@@ -42,14 +87,18 @@ def extract_letters(text: str) -> str:
 
         character
 
-        for character in text
+        for character in sanitize_text(text)
 
         if character.isalpha()
 
     )
 
 
-def extract_numbers(text: str) -> str:
+# -----------------------------------------------------
+
+def extract_numbers(
+    text: str,
+) -> str:
     """
     Extract numeric characters.
     """
@@ -58,7 +107,7 @@ def extract_numbers(text: str) -> str:
 
         character
 
-        for character in text
+        for character in sanitize_text(text)
 
         if character.isdigit()
 
@@ -66,32 +115,92 @@ def extract_numbers(text: str) -> str:
 
 
 # =====================================================
-# PASSWORD LENGTH
+# VALIDATION
 # =====================================================
 
-def make_password_length(
-    password: str,
+def validate_length(
     length: int,
-    charset: str
+) -> int:
+    """
+    Validate password length.
+    """
+
+    return max(
+
+        MIN_PASSWORD_LENGTH,
+
+        min(
+
+            length,
+
+            MAX_PASSWORD_LENGTH,
+
+        ),
+
+    )
+
+
+# -----------------------------------------------------
+
+def validate_count(
+    count: int,
+) -> int:
+    """
+    Validate password count.
+    """
+
+    return max(
+
+        1,
+
+        min(
+
+            count,
+
+            MAX_PASSWORD_COUNT,
+
+        ),
+
+    )
+
+
+# -----------------------------------------------------
+
+def validate_charset(
+    charset: str,
 ) -> str:
     """
-    Extend password until required length.
+    Ensure charset is usable.
     """
 
-    while len(password) < length:
+    if charset:
 
-        password += secrets.choice(charset)
+        return "".join(
 
-    return password[:length]
+            sorted(set(charset))
+
+        )
+
+    return (
+
+        UPPERCASE
+
+        + LOWERCASE
+
+        + DIGITS
+
+        + SPECIAL_CHARACTERS
+
+    )
 
 
 # =====================================================
-# REMOVE EXCLUDED CHARACTERS
+# CHARACTER HELPERS
 # =====================================================
 
 def remove_excluded(
     text: str,
-    excluded: str
+    excluded: str,
 ) -> str:
     """
     Remove excluded characters.
@@ -100,6 +209,8 @@ def remove_excluded(
     if not excluded:
 
         return text
+
+    excluded = set(excluded)
 
     return "".join(
 
@@ -112,52 +223,24 @@ def remove_excluded(
     )
 
 
-# =====================================================
-# PASSWORD STATISTICS
-# =====================================================
+# -----------------------------------------------------
 
-def password_stats(password: str) -> Dict[str, int]:
+def remove_similar(
+    text: str,
+) -> str:
     """
-    Return password statistics.
+    Remove visually similar characters.
     """
 
-    return {
+    return "".join(
 
-        "length": len(password),
+        character
 
-        "uppercase": sum(
+        for character in text
 
-            character.isupper()
+        if character not in SIMILAR_CHARACTERS
 
-            for character in password
-
-        ),
-
-        "lowercase": sum(
-
-            character.islower()
-
-            for character in password
-
-        ),
-
-        "digits": sum(
-
-            character.isdigit()
-
-            for character in password
-
-        ),
-
-        "special": sum(
-
-            not character.isalnum()
-
-            for character in password
-
-        ),
-
-    }
+    )
 
 
 # =====================================================
@@ -170,25 +253,25 @@ def build_charset(
     use_numbers: bool,
     use_symbols: bool,
     avoid_similar: bool,
-    exclude_chars: str
+    exclude_chars: str,
 ) -> str:
     """
-    Build character set.
+    Build secure character set.
     """
 
     charset = ""
 
     if use_upper:
 
-        charset += string.ascii_uppercase
+        charset += UPPERCASE
 
     if use_lower:
 
-        charset += string.ascii_lowercase
+        charset += LOWERCASE
 
     if use_numbers:
 
-        charset += string.digits
+        charset += DIGITS
 
     if use_symbols:
 
@@ -198,89 +281,199 @@ def build_charset(
 
         charset = (
 
-            string.ascii_letters
+            UPPERCASE
 
-            + string.digits
+            + LOWERCASE
+
+            + DIGITS
 
         )
 
     if avoid_similar:
 
-        charset = "".join(
-
-            character
-
-            for character in charset
-
-            if character not in SIMILAR_CHARACTERS
-
+        charset = remove_similar(
+            charset
         )
 
     charset = remove_excluded(
 
         charset,
 
-        exclude_chars
+        exclude_chars,
 
     )
 
-    return charset
+    return validate_charset(
+        charset
+    )
+
 
 # =====================================================
-# BASE PASSWORD
+# PASSWORD HELPERS
+# =====================================================
+
+def make_password_length(
+    password: str,
+    length: int,
+    charset: str,
+) -> str:
+    """
+    Extend password to required length.
+    """
+
+    while len(password) < length:
+
+        password += secrets.choice(
+            charset
+        )
+
+    return password[:length]
+
+
+# -----------------------------------------------------
+
+def secure_shuffle(
+    password: str,
+) -> str:
+    """
+    Cryptographically secure shuffle.
+    """
+
+    characters = list(password)
+
+    secrets.SystemRandom().shuffle(
+        characters
+    )
+
+    return "".join(
+        characters
+    )
+
+
+# =====================================================
+# PASSWORD STATISTICS
+# =====================================================
+
+def password_stats(
+    password: str,
+) -> Dict[str, int]:
+    """
+    Return password statistics.
+    """
+
+    return {
+
+        "length":
+            len(password),
+
+        "uppercase":
+            sum(
+
+                c.isupper()
+
+                for c in password
+
+            ),
+
+        "lowercase":
+            sum(
+
+                c.islower()
+
+                for c in password
+
+            ),
+
+        "digits":
+            sum(
+
+                c.isdigit()
+
+                for c in password
+
+            ),
+
+        "special":
+            sum(
+
+                not c.isalnum()
+
+                for c in password
+
+            ),
+
+        "unique":
+            len(set(password)),
+
+    }
+
+
+# =====================================================
+# MODULE INFORMATION
+# =====================================================
+
+GENERATOR_VERSION: Final[str] = (
+    "5.0 Professional"
+)
+
+# =====================================================
+# BASE PASSWORD BUILDER
+# Version 5.0 Professional
+# Part 2/4
 # =====================================================
 
 def build_base_password(
     user_input: str,
     extra_letters: str,
-    extra_numbers: str
+    extra_numbers: str,
 ) -> str:
     """
-    Build base password from user input.
+    Build a meaningful base password from
+    user supplied data.
     """
 
-    letters = extract_letters(user_input)
+    letters = extract_letters(
+        user_input
+    )
 
-    numbers = extract_numbers(user_input)
+    numbers = extract_numbers(
+        user_input
+    )
 
     if not letters:
 
-        letters = (
+        letters = sanitize_text(
+            extra_letters
+        )
 
-            extra_letters.strip()
+    if not letters:
 
-            if extra_letters.strip()
+        letters = DEFAULT_LETTERS
 
-            else DEFAULT_LETTERS
+    if not numbers:
 
+        numbers = sanitize_text(
+            extra_numbers
         )
 
     if not numbers:
 
-        numbers = (
-
-            extra_numbers.strip()
-
-            if extra_numbers.strip()
-
-            else DEFAULT_NUMBERS
-
-        )
+        numbers = DEFAULT_NUMBERS
 
     return letters.capitalize() + numbers
 
 
 # =====================================================
-# TEMPLATE SELECTION
+# TEMPLATE PASSWORDS
 # =====================================================
 
 def get_template_passwords(
     base_password: str,
-    template_type: str,
-    memorable: bool
+    template_name: str,
+    memorable: bool,
 ) -> List[str]:
     """
-    Return template passwords.
+    Generate template-based passwords.
     """
 
     if memorable:
@@ -291,7 +484,7 @@ def get_template_passwords(
 
     return templates.get_template(
 
-        template_type,
+        template_name,
 
         base_password,
 
@@ -299,7 +492,55 @@ def get_template_passwords(
 
 
 # =====================================================
-# ENSURE CHARACTER TYPES
+# PASSWORD CLEANUP
+# =====================================================
+
+def clean_password(
+    password: str,
+    avoid_similar: bool,
+    exclude_chars: str,
+) -> str:
+    """
+    Clean generated password.
+    """
+
+    password = remove_excluded(
+
+        password,
+
+        exclude_chars,
+
+    )
+
+    if avoid_similar:
+
+        translation = str.maketrans({
+
+            "O": "Q",
+
+            "o": "a",
+
+            "0": "8",
+
+            "I": "X",
+
+            "l": "L",
+
+            "1": "7",
+
+            "|": "!",
+
+        })
+
+        password = password.translate(
+            translation
+        )
+
+    return password
+
+
+# =====================================================
+# CHARACTER BALANCING
 # =====================================================
 
 def ensure_character_types(
@@ -308,11 +549,11 @@ def ensure_character_types(
     use_upper: bool,
     use_lower: bool,
     use_numbers: bool,
-    use_symbols: bool
+    use_symbols: bool,
 ) -> str:
     """
-    Ensure password contains all
-    selected character categories.
+    Ensure all requested character
+    categories are present.
     """
 
     characters = list(password)
@@ -325,7 +566,7 @@ def ensure_character_types(
         characters.append(
 
             secrets.choice(
-                string.ascii_uppercase
+                UPPERCASE
             )
 
         )
@@ -338,7 +579,7 @@ def ensure_character_types(
         characters.append(
 
             secrets.choice(
-                string.ascii_lowercase
+                LOWERCASE
             )
 
         )
@@ -351,7 +592,7 @@ def ensure_character_types(
         characters.append(
 
             secrets.choice(
-                string.digits
+                DIGITS
             )
 
         )
@@ -369,81 +610,309 @@ def ensure_character_types(
 
         )
 
-    # ---------------------------------------------
-    # Shuffle securely
-    # ---------------------------------------------
-
-    secrets.SystemRandom().shuffle(
-        characters
+    return secure_shuffle(
+        "".join(characters)
     )
 
-    password = "".join(
-        characters
+
+# =====================================================
+# PASSWORD VALIDATOR
+# =====================================================
+
+def validate_password(
+    password: str,
+    use_upper: bool,
+    use_lower: bool,
+    use_numbers: bool,
+    use_symbols: bool,
+) -> bool:
+    """
+    Validate generated password.
+    """
+
+    if use_upper and not any(
+        c.isupper()
+        for c in password
+    ):
+        return False
+
+    if use_lower and not any(
+        c.islower()
+        for c in password
+    ):
+        return False
+
+    if use_numbers and not any(
+        c.isdigit()
+        for c in password
+    ):
+        return False
+
+    if use_symbols and not any(
+        not c.isalnum()
+        for c in password
+    ):
+        return False
+
+    return True
+
+
+# =====================================================
+# PASSWORD OPTIMIZER
+# =====================================================
+
+def optimize_password(
+    password: str,
+    length: int,
+    charset: str,
+    use_upper: bool,
+    use_lower: bool,
+    use_numbers: bool,
+    use_symbols: bool,
+) -> str:
+    """
+    Optimize password before returning.
+    """
+
+    password = ensure_character_types(
+
+        password,
+
+        charset,
+
+        use_upper,
+
+        use_lower,
+
+        use_numbers,
+
+        use_symbols,
+
     )
 
     password = make_password_length(
 
         password,
 
-        max(
-            len(password),
-            len(characters)
-        ),
+        length,
 
-        charset
+        charset,
 
     )
 
-    return password
+    password = secure_shuffle(
+        password
+    )
+
+    return password[:length]
 
 
 # =====================================================
-# FINAL CLEANUP
+# TEMPLATE INFORMATION
 # =====================================================
 
-def clean_password(
+def available_templates() -> List[str]:
+    """
+    Return available template names.
+    """
+
+    return templates.available_templates()
+
+
+# =====================================================
+# GENERATOR INFORMATION
+# =====================================================
+
+def supported_charsets() -> Dict[str, str]:
+    """
+    Return supported character sets.
+    """
+
+    return {
+
+        "uppercase":
+            UPPERCASE,
+
+        "lowercase":
+            LOWERCASE,
+
+        "digits":
+            DIGITS,
+
+        "symbols":
+            SPECIAL_CHARACTERS,
+
+    }
+    
+    # =====================================================
+# PASSWORD GENERATION ENGINE
+# Version 5.0 Professional
+# Part 3/4
+# =====================================================
+
+import math
+
+# =====================================================
+# ENTROPY ESTIMATION
+# =====================================================
+
+def estimate_entropy(
     password: str,
+    charset_size: int,
+) -> float:
+    """
+    Estimate password entropy (bits).
+    """
+
+    if not password or charset_size <= 1:
+        return 0.0
+
+    return round(
+        len(password)
+        * math.log2(charset_size),
+        2,
+    )
+
+
+# =====================================================
+# SINGLE PASSWORD
+# =====================================================
+
+def generate_password(
+    user_input: str,
+    extra_letters: str,
+    extra_numbers: str,
+    length: int,
+    use_upper: bool,
+    use_lower: bool,
+    use_numbers: bool,
+    use_symbols: bool,
     avoid_similar: bool,
-    exclude_chars: str
+    exclude_chars: str,
+    template_name: str = "Personal",
+    memorable: bool = False,
 ) -> str:
     """
-    Final password cleanup.
+    Generate one optimized password.
     """
 
-    password = remove_excluded(
+    length = validate_length(length)
+
+    charset = build_charset(
+
+        use_upper,
+
+        use_lower,
+
+        use_numbers,
+
+        use_symbols,
+
+        avoid_similar,
+
+        exclude_chars,
+
+    )
+
+    base_password = build_base_password(
+
+        user_input,
+
+        extra_letters,
+
+        extra_numbers,
+
+    )
+
+    template_passwords = get_template_passwords(
+
+        base_password,
+
+        template_name,
+
+        memorable,
+
+    )
+
+    password = secrets.choice(
+        template_passwords
+    )
+
+    password = clean_password(
 
         password,
 
-        exclude_chars
+        avoid_similar,
+
+        exclude_chars,
 
     )
 
-    if avoid_similar:
+    password = optimize_password(
 
-        translation = str.maketrans({
+        password,
 
-            "O": "Q",
+        length,
 
-            "o": "a",
+        charset,
 
-            "I": "X",
+        use_upper,
 
-            "l": "L",
+        use_lower,
 
-            "0": "8",
+        use_numbers,
 
-            "1": "7"
+        use_symbols,
 
-        })
+    )
 
-        password = password.translate(
-            translation
+    if not validate_password(
+
+        password,
+
+        use_upper,
+
+        use_lower,
+
+        use_numbers,
+
+        use_symbols,
+
+    ):
+
+        return generate_password(
+
+            user_input,
+
+            extra_letters,
+
+            extra_numbers,
+
+            length,
+
+            use_upper,
+
+            use_lower,
+
+            use_numbers,
+
+            use_symbols,
+
+            avoid_similar,
+
+            exclude_chars,
+
+            template_name,
+
+            memorable,
+
         )
 
     return password
 
+
 # =====================================================
-# PASSWORD GENERATOR
+# MULTIPLE PASSWORDS
 # =====================================================
 
 def generate_passwords(
@@ -458,27 +927,70 @@ def generate_passwords(
     use_symbols: bool,
     avoid_similar: bool,
     exclude_chars: str,
-    template_type: str = "Personal",
-    memorable: bool = False
+    template_name: str = "Personal",
+    memorable: bool = False,
 ) -> List[str]:
     """
-    Generate multiple secure passwords.
-
-    Returns
-    -------
-    List[str]
-        List of generated passwords.
+    Generate multiple unique passwords.
     """
 
-    # -------------------------------------------------
-    # Minimum Password Length
-    # -------------------------------------------------
+    length = validate_length(length)
 
-    length = max(length, 8)
+    count = validate_count(count)
 
-    # -------------------------------------------------
-    # Character Set
-    # -------------------------------------------------
+    generated: set[str] = set()
+
+    attempts = 0
+
+    max_attempts = max(
+
+        count * 20,
+
+        100,
+
+    )
+
+    while (
+
+        len(generated) < count
+
+        and attempts < max_attempts
+
+    ):
+
+        attempts += 1
+
+        generated.add(
+
+            generate_password(
+
+                user_input,
+
+                extra_letters,
+
+                extra_numbers,
+
+                length,
+
+                use_upper,
+
+                use_lower,
+
+                use_numbers,
+
+                use_symbols,
+
+                avoid_similar,
+
+                exclude_chars,
+
+                template_name,
+
+                memorable,
+
+            )
+
+        )
 
     charset = build_charset(
 
@@ -492,173 +1004,13 @@ def generate_passwords(
 
         avoid_similar,
 
-        exclude_chars
+        exclude_chars,
 
     )
 
-    if not charset:
+    while len(generated) < count:
 
-        charset = (
-
-            string.ascii_letters
-
-            + string.digits
-
-            + SPECIAL_CHARACTERS
-
-        )
-
-    # -------------------------------------------------
-    # Base Password
-    # -------------------------------------------------
-
-    base_password = build_base_password(
-
-        user_input,
-
-        extra_letters,
-
-        extra_numbers
-
-    )
-
-    # -------------------------------------------------
-    # Template Passwords
-    # -------------------------------------------------
-
-    template_passwords = get_template_passwords(
-
-        base_password,
-
-        template_type,
-
-        memorable
-
-    )
-
-    # -------------------------------------------------
-    # Final Password List
-    # -------------------------------------------------
-
-    final_passwords: List[str] = []
-
-    attempts = 0
-
-    maximum_attempts = max(
-
-        100,
-
-        count * 20
-
-    )
-
-    # -------------------------------------------------
-    # Generate Passwords
-    # -------------------------------------------------
-
-    while (
-
-        len(final_passwords) < count
-
-        and attempts < maximum_attempts
-
-    ):
-
-        attempts += 1
-
-        password = secrets.choice(
-
-            template_passwords
-
-        )
-
-        # ---------------------------------------------
-        # Cleanup
-        # ---------------------------------------------
-
-        password = clean_password(
-
-            password,
-
-            avoid_similar,
-
-            exclude_chars
-
-        )
-
-        # ---------------------------------------------
-        # Required Character Types
-        # ---------------------------------------------
-
-        password = ensure_character_types(
-
-            password,
-
-            charset,
-
-            use_upper,
-
-            use_lower,
-
-            use_numbers,
-
-            use_symbols
-
-        )
-
-        # ---------------------------------------------
-        # Required Length
-        # ---------------------------------------------
-
-        password = make_password_length(
-
-            password,
-
-            length,
-
-            charset
-
-        )
-
-        # ---------------------------------------------
-        # Secure Shuffle
-        # ---------------------------------------------
-
-        characters = list(password)
-
-        secrets.SystemRandom().shuffle(
-
-            characters
-
-        )
-
-        password = "".join(
-
-            characters
-
-        )
-
-        password = password[:length]
-
-        # ---------------------------------------------
-        # Avoid Duplicate Passwords
-        # ---------------------------------------------
-
-        if password not in final_passwords:
-
-            final_passwords.append(
-
-                password
-
-            )
-
-    # -------------------------------------------------
-    # Fallback
-    # -------------------------------------------------
-
-    while len(final_passwords) < count:
-
-        random_password = "".join(
+        fallback = "".join(
 
             secrets.choice(charset)
 
@@ -666,25 +1018,206 @@ def generate_passwords(
 
         )
 
-        if random_password not in final_passwords:
+        generated.add(
 
-            final_passwords.append(
+            secure_shuffle(fallback)
 
-                random_password
+        )
 
-            )
+    return sorted(generated)
 
-    return final_passwords
+
+# =====================================================
+# GENERATOR STATISTICS
+# =====================================================
+
+def generator_statistics(
+    passwords: List[str],
+) -> Dict[str, object]:
+    """
+    Return statistics for generated passwords.
+    """
+
+    if not passwords:
+
+        return {}
+
+    charset_size = len(
+
+        UPPERCASE
+
+        + LOWERCASE
+
+        + DIGITS
+
+        + SPECIAL_CHARACTERS
+
+    )
+
+    entropy_values = [
+
+        estimate_entropy(
+
+            password,
+
+            charset_size,
+
+        )
+
+        for password in passwords
+
+    ]
+
+    lengths = [
+
+        len(password)
+
+        for password in passwords
+
+    ]
+
+    return {
+
+        "count":
+            len(passwords),
+
+        "minimum_length":
+            min(lengths),
+
+        "maximum_length":
+            max(lengths),
+
+        "average_length":
+            round(
+
+                sum(lengths)
+
+                / len(lengths),
+
+                2,
+
+            ),
+
+        "minimum_entropy":
+            min(entropy_values),
+
+        "maximum_entropy":
+            max(entropy_values),
+
+        "average_entropy":
+            round(
+
+                sum(entropy_values)
+
+                / len(entropy_values),
+
+                2,
+
+            ),
+
+        "duplicates":
+            len(passwords)
+            != len(set(passwords)),
+
+    }
+
+
+# =====================================================
+# MODULE INFORMATION
+# =====================================================
+
+def generator_info() -> Dict[str, object]:
+    """
+    Return generator information.
+    """
+
+    return {
+
+        "module":
+            "generator",
+
+        "version":
+            GENERATOR_VERSION,
+
+        "templates":
+            len(
+                available_templates()
+            ),
+
+        "default_length":
+            DEFAULT_LENGTH,
+
+        "minimum_length":
+            MIN_PASSWORD_LENGTH,
+
+        "maximum_length":
+            MAX_PASSWORD_LENGTH,
+
+        "maximum_passwords":
+            MAX_PASSWORD_COUNT,
+
+        "supported_charsets":
+            list(
+                supported_charsets().keys()
+            ),
+
+    }
+    
+    # =====================================================
+# DIAGNOSTICS
+# Version 5.0 Professional
+# Part 4/4
+# =====================================================
+
+def diagnostics() -> Dict[str, object]:
+    """
+    Return generator diagnostics.
+    """
+
+    return {
+
+        "module":
+            "generator",
+
+        "version":
+            GENERATOR_VERSION,
+
+        "status":
+            "Healthy",
+
+        "default_length":
+            DEFAULT_LENGTH,
+
+        "minimum_length":
+            MIN_PASSWORD_LENGTH,
+
+        "maximum_length":
+            MAX_PASSWORD_LENGTH,
+
+        "maximum_passwords":
+            MAX_PASSWORD_COUNT,
+
+        "templates":
+            len(
+                available_templates()
+            ),
+
+        "supported_charsets":
+            len(
+                supported_charsets()
+            ),
+
+    }
+
 
 # =====================================================
 # SELF TEST
 # =====================================================
 
-if __name__ == "__main__":
-
-    print("=" * 60)
-    print(" Smart Password Generator - Version 4.0 Professional")
-    print("=" * 60)
+def run_self_test() -> bool:
+    """
+    Execute generator self-test.
+    """
 
     passwords = generate_passwords(
 
@@ -710,42 +1243,278 @@ if __name__ == "__main__":
 
         exclude_chars="",
 
-        template_type="Developer",
+        template_name="Developer",
 
-        memorable=False
+        memorable=False,
 
     )
 
-    print("\nGenerated Passwords\n")
+    assert len(passwords) == 5
 
-    for index, password in enumerate(passwords, start=1):
+    assert len(set(passwords)) == 5
 
-        print(f"{index}. {password}")
+    for password in passwords:
 
-        stats = password_stats(password)
+        assert len(password) == 16
 
-        print(
-            f"   Length     : {stats['length']}"
+        assert validate_password(
+
+            password,
+
+            True,
+
+            True,
+
+            True,
+
+            True,
+
+        )
+
+    stats = generator_statistics(
+        passwords
+    )
+
+    assert stats["count"] == 5
+
+    assert isinstance(
+        diagnostics(),
+        dict,
+    )
+
+    assert isinstance(
+        generator_info(),
+        dict,
+    )
+
+    return True
+
+
+# =====================================================
+# EXAMPLE USAGE
+# =====================================================
+
+def example_usage() -> None:
+    """
+    Demonstrate generator usage.
+    """
+
+    passwords = generate_passwords(
+
+        user_input="Shahnawaz123",
+
+        extra_letters="",
+
+        extra_numbers="",
+
+        length=18,
+
+        count=5,
+
+        use_upper=True,
+
+        use_lower=True,
+
+        use_numbers=True,
+
+        use_symbols=True,
+
+        avoid_similar=False,
+
+        exclude_chars="",
+
+        template_name="Developer",
+
+        memorable=False,
+
+    )
+
+    print()
+
+    print("Generated Passwords")
+
+    print("-" * 60)
+
+    for index, password in enumerate(
+
+        passwords,
+
+        start=1,
+
+    ):
+
+        entropy = estimate_entropy(
+
+            password,
+
+            len(
+
+                UPPERCASE
+
+                + LOWERCASE
+
+                + DIGITS
+
+                + SPECIAL_CHARACTERS
+
+            ),
+
         )
 
         print(
-            f"   Uppercase  : {stats['uppercase']}"
+
+            f"{index:>2}. {password}"
+
         )
 
         print(
-            f"   Lowercase  : {stats['lowercase']}"
+
+            f"    Entropy : {entropy:.2f} bits"
+
         )
 
         print(
-            f"   Digits     : {stats['digits']}"
+
+            f"    Stats    : {password_stats(password)}"
+
         )
 
-        print(
-            f"   Symbols    : {stats['special']}"
-        )
+        print()
 
-        print("-" * 40)
 
-    print("\nGenerator Test Completed Successfully.")
+# =====================================================
+# PERFORMANCE BENCHMARK
+# =====================================================
 
-    print("=" * 60)
+def benchmark() -> Dict[str, object]:
+    """
+    Lightweight benchmark.
+    """
+
+    passwords = generate_passwords(
+
+        user_input="Benchmark",
+
+        extra_letters="",
+
+        extra_numbers="",
+
+        length=20,
+
+        count=100,
+
+        use_upper=True,
+
+        use_lower=True,
+
+        use_numbers=True,
+
+        use_symbols=True,
+
+        avoid_similar=False,
+
+        exclude_chars="",
+
+        template_name="Personal",
+
+        memorable=False,
+
+    )
+
+    return {
+
+        "generated":
+            len(passwords),
+
+        "duplicates":
+            len(passwords)
+            != len(set(passwords)),
+
+        "average_entropy":
+            round(
+
+                sum(
+
+                    estimate_entropy(
+
+                        p,
+
+                        len(
+
+                            UPPERCASE
+                            + LOWERCASE
+                            + DIGITS
+                            + SPECIAL_CHARACTERS
+
+                        ),
+
+                    )
+
+                    for p in passwords
+
+                ) / len(passwords),
+
+                2,
+
+            ),
+
+    }
+
+
+# =====================================================
+# MAIN
+# =====================================================
+
+if __name__ == "__main__":
+
+    print("=" * 70)
+
+    print("Password Generator")
+
+    print("Version 5.0 Professional")
+
+    print("=" * 70)
+
+    print()
+
+    print("Generator Information")
+
+    print("-" * 70)
+
+    for key, value in generator_info().items():
+
+        print(f"{key:<20}: {value}")
+
+    print()
+
+    example_usage()
+
+    print("Generator Statistics")
+
+    print("-" * 70)
+
+    print(
+
+        benchmark()
+
+    )
+
+    print()
+
+    print("Diagnostics")
+
+    print("-" * 70)
+
+    print(
+
+        diagnostics()
+
+    )
+
+    print()
+
+    if run_self_test():
+
+        print("✓ All tests passed successfully.")
+
+    print("=" * 70)

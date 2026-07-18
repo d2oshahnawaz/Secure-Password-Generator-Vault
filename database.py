@@ -1,97 +1,159 @@
 # =====================================================
 # DATABASE
+# Version 5.1 Professional
+# Part 1/5
 # =====================================================
 
+from __future__ import annotations
+
+# =====================================================
+# IMPORTS
+# =====================================================
+
+import shutil
 import sqlite3
 from pathlib import Path
+from typing import Any
+from typing import Final
+
+# =====================================================
+# MODULE INFORMATION
+# =====================================================
+
+MODULE_NAME: Final[str] = "database"
+
+MODULE_VERSION: Final[str] = "5.1 Professional"
 
 # =====================================================
 # DATABASE PATH
 # =====================================================
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR: Final[Path] = Path(__file__).resolve().parent
 
-DB_PATH = BASE_DIR / "password_history.db"
+DB_NAME: Final[str] = "password_history.db"
+
+DB_PATH: Final[Path] = BASE_DIR / DB_NAME
+
+BACKUP_DIR: Final[Path] = BASE_DIR / "backups"
+
+BACKUP_DIR.mkdir(
+    exist_ok=True
+)
 
 # =====================================================
-# CONNECTION
+# DATABASE CONNECTION
 # =====================================================
 
 conn = sqlite3.connect(
     DB_PATH,
-    check_same_thread=False
+    check_same_thread=False,
 )
 
+conn.row_factory = sqlite3.Row
+
 cursor = conn.cursor()
+
+# =====================================================
+# PRAGMA SETTINGS
+# =====================================================
+
+cursor.execute(
+    "PRAGMA foreign_keys = ON"
+)
+
+cursor.execute(
+    "PRAGMA journal_mode = WAL"
+)
+
+cursor.execute(
+    "PRAGMA synchronous = NORMAL"
+)
+
+cursor.execute(
+    "PRAGMA temp_store = MEMORY"
+)
+
+cursor.execute(
+    "PRAGMA cache_size = -10000"
+)
+
+conn.commit()
 
 # =====================================================
 # PASSWORD HISTORY TABLE
 # =====================================================
 
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS passwords(
+cursor.execute(
+    """
+    CREATE TABLE IF NOT EXISTS passwords(
 
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-    password TEXT,
+        password TEXT NOT NULL,
 
-    strength TEXT,
+        strength TEXT,
 
-    entropy REAL,
+        entropy REAL,
 
-    crack_time TEXT,
+        crack_time TEXT,
 
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP
+        DEFAULT CURRENT_TIMESTAMP
 
+    )
+"""
 )
-""")
 
 # =====================================================
 # PASSWORD VAULT TABLE
 # =====================================================
 
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS vault(
+cursor.execute(
+    """
+    CREATE TABLE IF NOT EXISTS vault(
 
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-    website TEXT NOT NULL,
+        website TEXT NOT NULL,
 
-    username TEXT NOT NULL,
+        username TEXT NOT NULL,
 
-    encrypted_password TEXT NOT NULL,
+        encrypted_password TEXT NOT NULL,
 
-    category TEXT,
+        category TEXT,
 
-    tags TEXT,
+        tags TEXT,
 
-    notes TEXT,
+        notes TEXT,
 
-    favorite INTEGER DEFAULT 0,
+        favorite INTEGER DEFAULT 0,
 
-    expiry_date TEXT,
+        expiry_date TEXT,
 
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP
+        DEFAULT CURRENT_TIMESTAMP,
 
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        updated_at TIMESTAMP
+        DEFAULT CURRENT_TIMESTAMP
 
+    )
+"""
 )
-""")
 
 conn.commit()
 
 # =====================================================
-# AUTO DATABASE MIGRATION
+# DATABASE MIGRATION
 # =====================================================
 
 def add_column_if_not_exists(
-    table_name,
-    column_name,
-    definition
-):
+    table_name: str,
+    column_name: str,
+    definition: str,
+) -> None:
     """
-    Add a column only if it does not already exist.
-    Safe for existing databases.
+    Add a column only if it
+    does not already exist.
     """
 
     cursor.execute(
@@ -100,16 +162,15 @@ def add_column_if_not_exists(
 
     columns = [
 
-        column[1]
+        row[1]
 
-        for column in cursor.fetchall()
+        for row in cursor.fetchall()
 
     ]
 
     if column_name not in columns:
 
         cursor.execute(
-
             f"""
             ALTER TABLE {table_name}
 
@@ -117,57 +178,226 @@ def add_column_if_not_exists(
 
             {definition}
             """
-
         )
 
         conn.commit()
 
 
 # =====================================================
-# MIGRATE OLD DATABASE
+# SAFE MIGRATIONS
 # =====================================================
 
-add_column_if_not_exists(
-    "vault",
-    "tags",
-    "TEXT"
-)
+MIGRATIONS: Final = [
 
-add_column_if_not_exists(
-    "vault",
-    "favorite",
-    "INTEGER DEFAULT 0"
-)
+    (
+        "vault",
+        "tags",
+        "TEXT",
+    ),
 
-add_column_if_not_exists(
-    "vault",
-    "expiry_date",
-    "TEXT"
-)
+    (
+        "vault",
+        "favorite",
+        "INTEGER DEFAULT 0",
+    ),
 
-add_column_if_not_exists(
-    "vault",
-    "updated_at",
-    "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
-)
+    (
+        "vault",
+        "expiry_date",
+        "TEXT",
+    ),
+
+    (
+        "vault",
+        "updated_at",
+        "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+    ),
+
+]
+
+for table, column, definition in MIGRATIONS:
+
+    add_column_if_not_exists(
+        table,
+        column,
+        definition,
+    )
 
 conn.commit()
 
 # =====================================================
-# PASSWORD HISTORY
+# DATABASE HELPERS
 # =====================================================
 
-def save_password(
-    password,
-    strength,
-    entropy,
-    crack_time
-):
+def execute(
+    query: str,
+    parameters: tuple[Any, ...] = (),
+) -> sqlite3.Cursor:
     """
-    Save generated password into history.
+    Execute INSERT/UPDATE/DELETE query.
     """
 
     cursor.execute(
+        query,
+        parameters,
+    )
+
+    conn.commit()
+
+    return cursor
+
+
+# -----------------------------------------------------
+
+def fetchall(
+    query: str,
+    parameters: tuple[Any, ...] = (),
+) -> list[sqlite3.Row]:
+    """
+    Execute SELECT query.
+    """
+
+    cursor.execute(
+        query,
+        parameters,
+    )
+
+    return cursor.fetchall()
+
+
+# -----------------------------------------------------
+
+def fetchone(
+    query: str,
+    parameters: tuple[Any, ...] = (),
+) -> sqlite3.Row | None:
+    """
+    Execute SELECT query
+    returning one row.
+    """
+
+    cursor.execute(
+        query,
+        parameters,
+    )
+
+    return cursor.fetchone()
+
+
+# =====================================================
+# DATABASE UTILITIES
+# =====================================================
+
+def database_exists() -> bool:
+    """
+    Check whether database exists.
+    """
+
+    return DB_PATH.exists()
+
+
+# -----------------------------------------------------
+
+def database_size() -> int:
+    """
+    Database size in bytes.
+    """
+
+    if not database_exists():
+
+        return 0
+
+    return DB_PATH.stat().st_size
+
+
+# -----------------------------------------------------
+
+def optimize_database() -> None:
+    """
+    Optimize SQLite database.
+    """
+
+    cursor.execute(
+        "VACUUM"
+    )
+
+    cursor.execute(
+        "ANALYZE"
+    )
+
+    conn.commit()
+
+
+# -----------------------------------------------------
+
+def close_database() -> None:
+    """
+    Close SQLite connection.
+    """
+
+    conn.commit()
+
+    conn.close()
+
+
+# =====================================================
+# MODULE INFORMATION
+# =====================================================
+
+def module_info() -> dict[str, Any]:
+    """
+    Database module metadata.
+    """
+
+    return {
+
+        "module":
+            MODULE_NAME,
+
+        "version":
+            MODULE_VERSION,
+
+        "database":
+            str(DB_PATH),
+
+        "database_exists":
+            database_exists(),
+
+        "database_size":
+            database_size(),
+
+        "wal_mode":
+            True,
+
+        "cloud_ready":
+            True,
+
+    }
+    
+    # =====================================================
+# PASSWORD HISTORY API
+# Version 5.1 Professional
+# Part 2/5
+# =====================================================
+
+# =====================================================
+# SAVE PASSWORD
+# =====================================================
+
+def save_password(
+    password: str,
+    strength: str,
+    entropy: float,
+    crack_time: str,
+) -> int:
+    """
+    Save generated password into history.
+
+    Returns:
+        Inserted row ID.
+    """
+
+    execute(
         """
         INSERT INTO passwords(
 
@@ -188,23 +418,23 @@ def save_password(
             password,
             strength,
             entropy,
-            crack_time
-        )
+            crack_time,
+        ),
     )
 
-    conn.commit()
+    return cursor.lastrowid
 
 
 # =====================================================
 # GET HISTORY
 # =====================================================
 
-def get_history():
+def get_history() -> list[sqlite3.Row]:
     """
     Return complete password history.
     """
 
-    cursor.execute(
+    return fetchall(
         """
         SELECT *
 
@@ -214,19 +444,52 @@ def get_history():
         """
     )
 
-    return cursor.fetchall()
+
+# =====================================================
+# GET RECENT HISTORY
+# =====================================================
+
+def get_recent_history(
+    limit: int = 10,
+) -> list[sqlite3.Row]:
+    """
+    Return recent password history.
+    """
+
+    return fetchall(
+        """
+        SELECT *
+
+        FROM passwords
+
+        ORDER BY created_at DESC
+
+        LIMIT ?
+        """,
+        (limit,),
+    )
 
 
 # =====================================================
 # SEARCH HISTORY
 # =====================================================
 
-def search_history(keyword):
+def search_history(
+    keyword: str,
+) -> list[sqlite3.Row]:
     """
     Search password history.
     """
 
-    cursor.execute(
+    keyword = keyword.strip()
+
+    if not keyword:
+
+        return get_history()
+
+    value = f"%{keyword}%"
+
+    return fetchall(
         """
         SELECT *
 
@@ -234,55 +497,71 @@ def search_history(keyword):
 
         WHERE
 
-        password LIKE ?
+            password LIKE ?
 
-        OR strength LIKE ?
+            OR strength LIKE ?
 
-        OR crack_time LIKE ?
+            OR crack_time LIKE ?
 
         ORDER BY created_at DESC
         """,
         (
-            f"%{keyword}%",
-            f"%{keyword}%",
-            f"%{keyword}%"
-        )
+            value,
+            value,
+            value,
+        ),
     )
 
-    return cursor.fetchall()
-
 
 # =====================================================
-# DELETE HISTORY ITEM
+# DELETE HISTORY RECORD
 # =====================================================
 
-def delete_history(history_id):
+def delete_history(
+    history_id: int,
+) -> bool:
     """
-    Delete a single history record.
+    Delete a history record.
     """
 
-    cursor.execute(
+    execute(
         """
         DELETE FROM passwords
 
         WHERE id=?
         """,
-        (history_id,)
+        (history_id,),
     )
 
-    conn.commit()
+    return cursor.rowcount > 0
+
+
+# =====================================================
+# CLEAR HISTORY
+# =====================================================
+
+def clear_history() -> None:
+    """
+    Remove all history records.
+    """
+
+    execute(
+        """
+        DELETE FROM passwords
+        """
+    )
 
 
 # =====================================================
 # HISTORY COUNT
 # =====================================================
 
-def history_count():
+def history_count() -> int:
     """
-    Return total saved passwords.
+    Total generated passwords.
     """
 
-    cursor.execute(
+    row = fetchone(
         """
         SELECT COUNT(*)
 
@@ -290,55 +569,177 @@ def history_count():
         """
     )
 
-    return cursor.fetchone()[0]
+    return int(row[0])
 
 
 # =====================================================
-# CLEAR HISTORY
+# HISTORY STATISTICS
 # =====================================================
 
-def clear_history():
+def history_statistics() -> dict[str, Any]:
     """
-    Delete all password history.
+    Return history statistics.
     """
 
-    cursor.execute(
+    row = fetchone(
         """
-        DELETE FROM passwords
+        SELECT
+
+            COUNT(*) AS total,
+
+            AVG(entropy) AS avg_entropy,
+
+            MIN(entropy) AS min_entropy,
+
+            MAX(entropy) AS max_entropy
+
+        FROM passwords
         """
     )
 
-    conn.commit()
+    return {
+
+        "total":
+            int(row["total"] or 0),
+
+        "average_entropy":
+            round(
+                row["avg_entropy"] or 0,
+                2,
+            ),
+
+        "minimum_entropy":
+            round(
+                row["min_entropy"] or 0,
+                2,
+            ),
+
+        "maximum_entropy":
+            round(
+                row["max_entropy"] or 0,
+                2,
+            ),
+
+    }
+
 
 # =====================================================
-# PASSWORD VAULT
+# PASSWORD STRENGTH COUNTS
+# =====================================================
+
+def strength_count() -> list[sqlite3.Row]:
+    """
+    Count passwords by strength.
+    """
+
+    return fetchall(
+        """
+        SELECT
+
+            strength,
+
+            COUNT(*) AS total
+
+        FROM passwords
+
+        GROUP BY strength
+
+        ORDER BY total DESC
+        """
+    )
+
+
+# =====================================================
+# DELETE DUPLICATE HISTORY
+# =====================================================
+
+def remove_duplicate_history() -> int:
+    """
+    Remove duplicate passwords.
+
+    Returns:
+        Number of deleted rows.
+    """
+
+    before = history_count()
+
+    execute(
+        """
+        DELETE FROM passwords
+
+        WHERE id NOT IN(
+
+            SELECT MIN(id)
+
+            FROM passwords
+
+            GROUP BY password
+
+        )
+        """
+    )
+
+    after = history_count()
+
+    return before - after
+
+
+# =====================================================
+# HISTORY EXISTS
+# =====================================================
+
+def history_exists() -> bool:
+    """
+    Check if history contains data.
+    """
+
+    return history_count() > 0
+
+# =====================================================
+# PASSWORD VAULT API
+# Version 5.1 Professional
+# Part 3/5
+# =====================================================
+
+# =====================================================
+# SAVE VAULT PASSWORD
 # =====================================================
 
 def save_vault(
-    website,
-    username,
-    encrypted_password,
-    category,
-    tags,
-    notes,
-    favorite=0,
-    expiry_date=None
-):
+    website: str,
+    username: str,
+    encrypted_password: str,
+    category: str,
+    tags: str,
+    notes: str,
+    favorite: int = 0,
+    expiry_date: str | None = None,
+) -> int:
     """
-    Save password into encrypted vault.
+    Save password into vault.
+
+    Returns:
+        Inserted row ID.
     """
 
-    cursor.execute(
+    execute(
         """
         INSERT INTO vault(
 
             website,
+
             username,
+
             encrypted_password,
+
             category,
+
             tags,
+
             notes,
+
             favorite,
+
             expiry_date
 
         )
@@ -354,23 +755,23 @@ def save_vault(
             tags,
             notes,
             favorite,
-            expiry_date
-        )
+            expiry_date,
+        ),
     )
 
-    conn.commit()
+    return cursor.lastrowid
 
 
 # =====================================================
-# GET ALL PASSWORDS
+# GET VAULT
 # =====================================================
 
-def get_vault():
+def get_vault() -> list[sqlite3.Row]:
     """
-    Return all vault passwords.
+    Return all vault entries.
     """
 
-    cursor.execute(
+    return fetchall(
         """
         SELECT *
 
@@ -380,19 +781,50 @@ def get_vault():
         """
     )
 
-    return cursor.fetchall()
+
+# =====================================================
+# GET PASSWORD
+# =====================================================
+
+def get_password(
+    vault_id: int,
+) -> sqlite3.Row | None:
+    """
+    Return a single vault entry.
+    """
+
+    return fetchone(
+        """
+        SELECT *
+
+        FROM vault
+
+        WHERE id=?
+        """,
+        (vault_id,),
+    )
 
 
 # =====================================================
-# SEARCH PASSWORDS
+# SEARCH VAULT
 # =====================================================
 
-def search_vault(keyword):
+def search_vault(
+    keyword: str,
+) -> list[sqlite3.Row]:
     """
     Search vault.
     """
 
-    cursor.execute(
+    keyword = keyword.strip()
+
+    if not keyword:
+
+        return get_vault()
+
+    value = f"%{keyword}%"
+
+    return fetchall(
         """
         SELECT *
 
@@ -400,28 +832,26 @@ def search_vault(keyword):
 
         WHERE
 
-        website LIKE ?
+            website LIKE ?
 
-        OR username LIKE ?
+            OR username LIKE ?
 
-        OR category LIKE ?
+            OR category LIKE ?
 
-        OR tags LIKE ?
+            OR tags LIKE ?
 
-        OR notes LIKE ?
+            OR notes LIKE ?
 
         ORDER BY created_at DESC
         """,
         (
-            f"%{keyword}%",
-            f"%{keyword}%",
-            f"%{keyword}%",
-            f"%{keyword}%",
-            f"%{keyword}%"
-        )
+            value,
+            value,
+            value,
+            value,
+            value,
+        ),
     )
-
-    return cursor.fetchall()
 
 
 # =====================================================
@@ -429,53 +859,43 @@ def search_vault(keyword):
 # =====================================================
 
 def update_vault(
-
-    vault_id,
-
-    website,
-
-    username,
-
-    encrypted_password,
-
-    category,
-
-    tags,
-
-    notes,
-
-    favorite,
-
-    expiry_date
-
-):
+    vault_id: int,
+    website: str,
+    username: str,
+    encrypted_password: str,
+    category: str,
+    tags: str,
+    notes: str,
+    favorite: int,
+    expiry_date: str | None,
+) -> bool:
     """
     Update vault password.
     """
 
-    cursor.execute(
+    execute(
         """
         UPDATE vault
 
         SET
 
-        website=?,
+            website=?,
 
-        username=?,
+            username=?,
 
-        encrypted_password=?,
+            encrypted_password=?,
 
-        category=?,
+            category=?,
 
-        tags=?,
+            tags=?,
 
-        notes=?,
+            notes=?,
 
-        favorite=?,
+            favorite=?,
 
-        expiry_date=?,
+            expiry_date=?,
 
-        updated_at=CURRENT_TIMESTAMP
+            updated_at=CURRENT_TIMESTAMP
 
         WHERE id=?
 
@@ -489,57 +909,154 @@ def update_vault(
             notes,
             favorite,
             expiry_date,
-            vault_id
-        )
+            vault_id,
+        ),
     )
 
-    conn.commit()
+    return cursor.rowcount > 0
 
 
 # =====================================================
-# TOGGLE FAVORITE
+# DELETE PASSWORD
 # =====================================================
 
-def toggle_favorite(vault_id):
+def delete_vault(
+    vault_id: int,
+) -> bool:
     """
-    Toggle favorite status.
+    Delete vault password.
     """
 
-    cursor.execute(
+    execute(
         """
-        UPDATE vault
-
-        SET
-
-        favorite = CASE
-
-            WHEN favorite=1 THEN 0
-
-            ELSE 1
-
-        END,
-
-        updated_at=CURRENT_TIMESTAMP
+        DELETE FROM vault
 
         WHERE id=?
-
         """,
-        (vault_id,)
+        (vault_id,),
     )
 
-    conn.commit()
+    return cursor.rowcount > 0
 
 
 # =====================================================
-# GET FAVORITES
+# CLEAR VAULT
 # =====================================================
 
-def get_favorites():
+def clear_vault() -> None:
+    """
+    Delete all vault entries.
+    """
+
+    execute(
+        """
+        DELETE FROM vault
+        """
+    )
+
+
+# =====================================================
+# VAULT COUNT
+# =====================================================
+
+def vault_count() -> int:
+    """
+    Total stored passwords.
+    """
+
+    row = fetchone(
+        """
+        SELECT COUNT(*)
+
+        FROM vault
+        """
+    )
+
+    return int(row[0])
+
+
+# =====================================================
+# VAULT EXISTS
+# =====================================================
+
+def vault_exists() -> bool:
+    """
+    Check whether vault has data.
+    """
+
+    return vault_count() > 0
+
+
+# =====================================================
+# GET RECENT VAULT
+# =====================================================
+
+def get_recent_vault(
+    limit: int = 10,
+) -> list[sqlite3.Row]:
+    """
+    Return recent vault entries.
+    """
+
+    return fetchall(
+        """
+        SELECT *
+
+        FROM vault
+
+        ORDER BY created_at DESC
+
+        LIMIT ?
+        """,
+        (limit,),
+    )
+
+
+# =====================================================
+# DUPLICATE PASSWORDS
+# =====================================================
+
+def duplicate_passwords() -> list[sqlite3.Row]:
+    """
+    Find duplicate encrypted passwords.
+    """
+
+    return fetchall(
+        """
+        SELECT
+
+            encrypted_password,
+
+            COUNT(*) AS total
+
+        FROM vault
+
+        GROUP BY encrypted_password
+
+        HAVING COUNT(*) > 1
+
+        ORDER BY total DESC
+        """
+    )
+    
+    # =====================================================
+# DATABASE ANALYTICS & UTILITIES
+# Version 5.1 Professional
+# Part 4/5
+# =====================================================
+
+from datetime import datetime
+
+# =====================================================
+# FAVORITES
+# =====================================================
+
+def get_favorites() -> list[sqlite3.Row]:
     """
     Return favorite passwords.
     """
 
-    cursor.execute(
+    return fetchall(
         """
         SELECT *
 
@@ -551,19 +1068,55 @@ def get_favorites():
         """
     )
 
-    return cursor.fetchall()
+
+# =====================================================
+# TOGGLE FAVORITE
+# =====================================================
+
+def toggle_favorite(
+    vault_id: int,
+) -> bool:
+    """
+    Toggle favorite status.
+    """
+
+    execute(
+        """
+        UPDATE vault
+
+        SET
+
+            favorite = CASE
+
+                WHEN favorite=1 THEN 0
+
+                ELSE 1
+
+            END,
+
+            updated_at=CURRENT_TIMESTAMP
+
+        WHERE id=?
+
+        """,
+        (vault_id,),
+    )
+
+    return cursor.rowcount > 0
 
 
 # =====================================================
 # FILTER CATEGORY
 # =====================================================
 
-def filter_category(category):
+def filter_category(
+    category: str,
+) -> list[sqlite3.Row]:
     """
     Filter passwords by category.
     """
 
-    cursor.execute(
+    return fetchall(
         """
         SELECT *
 
@@ -573,22 +1126,20 @@ def filter_category(category):
 
         ORDER BY created_at DESC
         """,
-        (category,)
+        (category,),
     )
-
-    return cursor.fetchall()
 
 
 # =====================================================
 # EXPIRED PASSWORDS
 # =====================================================
 
-def expired_passwords():
+def expired_passwords() -> list[sqlite3.Row]:
     """
     Return expired passwords.
     """
 
-    cursor.execute(
+    return fetchall(
         """
         SELECT *
 
@@ -596,86 +1147,26 @@ def expired_passwords():
 
         WHERE
 
-        expiry_date IS NOT NULL
+            expiry_date IS NOT NULL
 
-        AND date(expiry_date) <= date('now')
+            AND date(expiry_date)
+                <= date('now')
 
         ORDER BY expiry_date
         """
     )
-
-    return cursor.fetchall()
-
-
-# =====================================================
-# DELETE PASSWORD
-# =====================================================
-
-def delete_vault(vault_id):
-    """
-    Delete one vault password.
-    """
-
-    cursor.execute(
-        """
-        DELETE FROM vault
-
-        WHERE id=?
-        """,
-        (vault_id,)
-    )
-
-    conn.commit()
-
-
-# =====================================================
-# CLEAR VAULT
-# =====================================================
-
-def clear_vault():
-    """
-    Delete all vault passwords.
-    """
-
-    cursor.execute(
-        """
-        DELETE FROM vault
-        """
-    )
-
-    conn.commit()
-
-
-# =====================================================
-# VAULT COUNT
-# =====================================================
-
-def vault_count():
-    """
-    Total passwords stored.
-    """
-
-    cursor.execute(
-        """
-        SELECT COUNT(*)
-
-        FROM vault
-        """
-    )
-
-    return cursor.fetchone()[0]
 
 
 # =====================================================
 # FAVORITE COUNT
 # =====================================================
 
-def favorite_count():
+def favorite_count() -> int:
     """
-    Total favorite passwords.
+    Return favorite count.
     """
 
-    cursor.execute(
+    row = fetchone(
         """
         SELECT COUNT(*)
 
@@ -685,32 +1176,508 @@ def favorite_count():
         """
     )
 
-    return cursor.fetchone()[0]
+    return int(row[0])
 
 
 # =====================================================
 # CATEGORY COUNT
 # =====================================================
 
-def category_count():
+def category_count() -> list[sqlite3.Row]:
     """
-    Category wise password count.
+    Category-wise statistics.
     """
 
-    cursor.execute(
+    return fetchall(
         """
         SELECT
 
-        category,
+            category,
 
-        COUNT(*)
+            COUNT(*) AS total
 
         FROM vault
 
         GROUP BY category
 
-        ORDER BY COUNT(*) DESC
+        ORDER BY total DESC
         """
     )
 
-    return cursor.fetchall()
+
+# =====================================================
+# VAULT STATISTICS
+# =====================================================
+
+def vault_statistics() -> dict[str, Any]:
+    """
+    Overall vault statistics.
+    """
+
+    return {
+
+        "total":
+            vault_count(),
+
+        "favorites":
+            favorite_count(),
+
+        "expired":
+            len(
+                expired_passwords()
+            ),
+
+        "duplicates":
+            len(
+                duplicate_passwords()
+            ),
+
+        "categories":
+            len(
+                category_count()
+            ),
+
+    }
+
+
+# =====================================================
+# RECENTLY UPDATED
+# =====================================================
+
+def recently_updated(
+    limit: int = 10,
+) -> list[sqlite3.Row]:
+    """
+    Recently updated passwords.
+    """
+
+    return fetchall(
+        """
+        SELECT *
+
+        FROM vault
+
+        ORDER BY updated_at DESC
+
+        LIMIT ?
+        """,
+        (limit,),
+    )
+
+
+# =====================================================
+# DATABASE BACKUP
+# =====================================================
+
+def backup_database() -> Path:
+    """
+    Create SQLite backup.
+    """
+
+    timestamp = datetime.now().strftime(
+        "%Y%m%d_%H%M%S"
+    )
+
+    backup_file = (
+
+        BACKUP_DIR
+
+        / f"password_history_{timestamp}.db"
+
+    )
+
+    shutil.copy2(
+        DB_PATH,
+        backup_file,
+    )
+
+    return backup_file
+
+
+# =====================================================
+# RESTORE DATABASE
+# =====================================================
+
+def restore_database(
+    backup_file: Path,
+) -> None:
+    """
+    Restore database from backup.
+    """
+
+    conn.commit()
+
+    shutil.copy2(
+        backup_file,
+        DB_PATH,
+    )
+
+
+# =====================================================
+# DATABASE HEALTH
+# =====================================================
+
+def database_health() -> dict[str, Any]:
+    """
+    Database health information.
+    """
+
+    return {
+
+        "database_exists":
+            database_exists(),
+
+        "database_size":
+            database_size(),
+
+        "history_records":
+            history_count(),
+
+        "vault_records":
+            vault_count(),
+
+        "favorite_records":
+            favorite_count(),
+
+        "expired_records":
+            len(
+                expired_passwords()
+            ),
+
+    }
+
+
+# =====================================================
+# OPTIMIZE DATABASE
+# =====================================================
+
+def optimize() -> None:
+    """
+    Optimize SQLite database.
+    """
+
+    optimize_database()
+
+
+# =====================================================
+# BACKUP EXISTS
+# =====================================================
+
+def available_backups() -> list[Path]:
+    """
+    Return available backups.
+    """
+
+    return sorted(
+
+        BACKUP_DIR.glob("*.db"),
+
+        reverse=True,
+
+    )
+    
+    # =====================================================
+# DATABASE DIAGNOSTICS
+# Version 5.1 Professional
+# Part 5/5
+# =====================================================
+
+# =====================================================
+# DATABASE DIAGNOSTICS
+# =====================================================
+
+def diagnostics() -> dict[str, Any]:
+    """
+    Return complete database diagnostics.
+    """
+
+    return {
+
+        "module":
+            MODULE_NAME,
+
+        "version":
+            MODULE_VERSION,
+
+        "database_path":
+            str(DB_PATH),
+
+        "database_exists":
+            database_exists(),
+
+        "database_size":
+            database_size(),
+
+        "history_records":
+            history_count(),
+
+        "vault_records":
+            vault_count(),
+
+        "favorite_records":
+            favorite_count(),
+
+        "expired_records":
+            len(
+                expired_passwords()
+            ),
+
+        "duplicate_passwords":
+            len(
+                duplicate_passwords()
+            ),
+
+        "categories":
+            len(
+                category_count()
+            ),
+
+        "backups":
+            len(
+                available_backups()
+            ),
+
+        "wal_mode":
+            True,
+
+        "cloud_ready":
+            True,
+
+    }
+
+
+# =====================================================
+# DATABASE INTEGRITY
+# =====================================================
+
+def integrity_check() -> bool:
+    """
+    Run SQLite integrity check.
+    """
+
+    row = fetchone(
+        "PRAGMA integrity_check"
+    )
+
+    if row is None:
+
+        return False
+
+    return row[0] == "ok"
+
+
+# =====================================================
+# TABLE INFORMATION
+# =====================================================
+
+def table_information() -> dict[str, int]:
+    """
+    Number of records in each table.
+    """
+
+    return {
+
+        "passwords":
+            history_count(),
+
+        "vault":
+            vault_count(),
+
+    }
+
+
+# =====================================================
+# DATABASE INFORMATION
+# =====================================================
+
+def database_information() -> dict[str, Any]:
+    """
+    Public database information.
+    """
+
+    return {
+
+        "module":
+            MODULE_NAME,
+
+        "version":
+            MODULE_VERSION,
+
+        "database":
+            DB_NAME,
+
+        "path":
+            str(DB_PATH),
+
+        "backup_directory":
+            str(BACKUP_DIR),
+
+        "database_size":
+            database_size(),
+
+        "history_records":
+            history_count(),
+
+        "vault_records":
+            vault_count(),
+
+    }
+
+
+# =====================================================
+# CLEANUP
+# =====================================================
+
+def cleanup() -> None:
+    """
+    Commit pending transactions.
+    """
+
+    conn.commit()
+
+
+# =====================================================
+# CLOSE
+# =====================================================
+
+def shutdown() -> None:
+    """
+    Close database safely.
+    """
+
+    cleanup()
+
+    close_database()
+
+
+# =====================================================
+# SELF TEST
+# =====================================================
+
+def run_self_test() -> bool:
+    """
+    Validate database module.
+    """
+
+    try:
+
+        assert database_exists()
+
+        assert integrity_check()
+
+        assert isinstance(
+            history_count(),
+            int,
+        )
+
+        assert isinstance(
+            vault_count(),
+            int,
+        )
+
+        assert isinstance(
+            favorite_count(),
+            int,
+        )
+
+        assert isinstance(
+            diagnostics(),
+            dict,
+        )
+
+        assert isinstance(
+            database_health(),
+            dict,
+        )
+
+        assert isinstance(
+            vault_statistics(),
+            dict,
+        )
+
+        return True
+
+    except Exception:
+
+        return False
+
+
+# =====================================================
+# MODULE INFO
+# =====================================================
+
+def module_information() -> dict[str, Any]:
+    """
+    Module metadata.
+    """
+
+    return {
+
+        "name":
+            MODULE_NAME,
+
+        "version":
+            MODULE_VERSION,
+
+        "database":
+            DB_NAME,
+
+        "database_path":
+            str(DB_PATH),
+
+        "cloud_ready":
+            True,
+
+        "sqlite":
+            sqlite3.sqlite_version,
+
+        "python":
+            "3.11+",
+
+        "status":
+            "Production",
+
+    }
+
+
+# =====================================================
+# MAIN
+# =====================================================
+
+if __name__ == "__main__":
+
+    print(
+        "Database Module"
+    )
+
+    print(
+        f"Version : {MODULE_VERSION}"
+    )
+
+    print(
+        f"Database : {DB_PATH}"
+    )
+
+    print(
+        f"Integrity : {integrity_check()}"
+    )
+
+    print(
+        f"History : {history_count()}"
+    )
+
+    print(
+        f"Vault : {vault_count()}"
+    )
+
+    print(
+        f"Favorites : {favorite_count()}"
+    )
+
+    print(
+        f"Backups : {len(available_backups())}"
+    )
+
+    print(
+        f"Self Test : {run_self_test()}"
+    )

@@ -1,5 +1,6 @@
 streamlit
 pandas
 plotly
-zxcvbn
 cryptography
+zxcvbn
+openpyxl

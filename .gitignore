@@ -1,24 +1,23 @@
 # Virtual Environment
 .venv/
 .venv-1/
-venv/
+.venv-2/
 
-# Python
+# Python Cache
 __pycache__/
 *.py[cod]
-*.pyo
+*$py.class
+
+# Database
+*.db
+
+# Encryption Keys
+vault.key
+*.key
 
 # IDE
 .vscode/
 .idea/
-
-# Database
-*.db
-*.sqlite3
-
-# Secrets
-vault.key
-.env
 
 # OS Files
 .DS_Store
@@ -26,3 +25,9 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Optional Runtime Files
+master_backup.json
+master_audit.json
+vault.key.bak
+master.json

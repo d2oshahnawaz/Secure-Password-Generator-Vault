@@ -15,6 +15,7 @@ from history import (
     export_csv,
     export_txt,
     export_json,
+    export_excel
 )
 
 from clipboard import render_copy_button
@@ -78,15 +79,10 @@ def show_history():
     with col2:
 
         filter_option = st.selectbox(
-            
             "Filter",
-            
             [
-                
                 "All",
-                
                 "Strong",
-                
                 "Medium",
                 "Weak",
             ],
@@ -126,7 +122,6 @@ def show_history():
             for row in history
 
             if filter_option.lower()
-            
             in row[2].lower()
 
         ]
@@ -140,7 +135,6 @@ def show_history():
     with metric1:
 
         st.metric(
-            
             "Total Passwords",
             len(history),
         )
@@ -148,10 +142,8 @@ def show_history():
     with metric2:
 
         st.metric(
-            
             "Showing",
             min(len(history), 20),
-            
         )
 
     st.caption(
@@ -190,7 +182,7 @@ def show_history():
                 language="text",
             )
 
-                        # =================================================
+            # =================================================
             # PASSWORD DETAILS
             # =================================================
 
@@ -274,8 +266,6 @@ def show_history():
 
 def show_export():
 
-
-
     st.header("Export Password History")
 
     st.caption(
@@ -309,12 +299,12 @@ def show_export():
 
         st.metric(
             "Export Formats",
-            "3"
+            "4"
         )
 
     st.divider()
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
 
     # ==========================================
     # CSV
@@ -377,6 +367,26 @@ def show_export():
             use_container_width=True
 
         )
+        
+    # ==========================================
+    # EXCEL
+    # ==========================================
+
+    with col4:
+
+        st.download_button(
+
+            label="Download Excel",
+
+            data=export_excel(),
+
+            file_name="password_history.xlsx",
+
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+
+            use_container_width=True
+
+        )
 
     st.success(
         "Export is ready. Choose any format to download."
@@ -395,6 +405,11 @@ def show_export():
 - Spreadsheet compatible
 - Microsoft Excel
 - Google Sheets
+
+**Excel (.xlsx)**
+- Native Microsoft Excel format
+- Preserves table structure
+- Best for reports and analysis
 
 **TXT**
 - Plain text format

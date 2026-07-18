@@ -1,6 +1,6 @@
 # =====================================================
 # PASSWORD SCORE
-# Version 4.0 Professional
+# Version 5.0 Professional
 # =====================================================
 
 from __future__ import annotations
@@ -29,117 +29,94 @@ SECURITY_WEIGHT: Final[int] = 10
 
 def calculate_score(
     password: str,
-    entropy: float
+    entropy: float,
 ) -> int:
     """
-    Calculate password security score.
-
-    Returns
-    -------
-    int
-        Score between 0 and 100.
+    Calculate password security score (0-100).
     """
 
     report = password_health(password)
 
     score = 0
 
-    # -------------------------------------------------
-    # Password Length (20)
-    # -------------------------------------------------
+    # =================================================
+    # LENGTH
+    # =================================================
 
     length = len(password)
 
-    if length >= 16:
-
+    if length >= 20:
         score += LENGTH_WEIGHT
 
-    elif length >= 12:
+    elif length >= 16:
+        score += 18
 
+    elif length >= 12:
         score += 15
 
     elif length >= 10:
-
         score += 10
 
     else:
-
         score += 5
 
-    # -------------------------------------------------
-    # Character Categories (40)
-    # -------------------------------------------------
+    # =================================================
+    # CHARACTER TYPES
+    # =================================================
 
     if report["uppercase"]:
-
         score += 10
 
     if report["lowercase"]:
-
         score += 10
 
     if report["numbers"]:
-
         score += 10
 
     if report["symbols"]:
-
         score += 10
 
-    # -------------------------------------------------
-    # Entropy (20)
-    # -------------------------------------------------
+    # =================================================
+    # ENTROPY
+    # =================================================
 
-    if entropy >= 80:
-
+    if entropy >= 100:
         score += ENTROPY_WEIGHT
 
-    elif entropy >= 60:
+    elif entropy >= 80:
+        score += 18
 
+    elif entropy >= 60:
         score += 15
 
     elif entropy >= 40:
-
         score += 10
 
     else:
-
         score += 5
 
-    # -------------------------------------------------
-    # Diversity Bonus (10)
-    # -------------------------------------------------
+    # =================================================
+    # DIVERSITY BONUS
+    # =================================================
 
     if (
-
         report["uppercase"]
-
         and report["lowercase"]
-
         and report["numbers"]
-
         and report["symbols"]
-
     ):
-
         score += DIVERSITY_WEIGHT
 
-    # -------------------------------------------------
-    # Security Bonus (10)
-    # -------------------------------------------------
+    # =================================================
+    # SECURITY BONUS
+    # =================================================
 
     if (
-
-        not report["sequential"]
-
-        and not report["repeated"]
-
+        not report["spaces"]
         and not report["common"]
-
-        and not report["spaces"]
-
+        and not report["repeated"]
+        and not report["sequential"]
     ):
-
         score += SECURITY_WEIGHT
 
     return min(score, MAX_SCORE)
@@ -148,55 +125,82 @@ def calculate_score(
 # SCORE LABEL
 # =====================================================
 
-def get_score_label(
-    score: int
-) -> tuple[str, str]:
-    """
-    Return score label and status.
-    """
+def get_score_label(score: int) -> tuple[str, str]:
 
     if score >= 95:
+        return "Excellent", "success"
 
-        return (
-            "Excellent (★★★★★)",
-            "success",
-        )
+    elif score >= 85:
+        return "Very Strong", "success"
 
-    if score >= 85:
+    elif score >= 70:
+        return "Strong", "info"
 
-        return (
-            "Very Strong (★★★★☆)",
-            "success",
-        )
+    elif score >= 55:
+        return "Moderate", "warning"
 
-    if score >= 70:
+    elif score >= 35:
+        return "Weak", "warning"
 
-        return (
-            "Strong (★★★☆☆)",
-            "info",
-        )
+    return "Very Weak", "error"
 
-    if score >= 55:
+# =====================================================
+# SCORE COLOR
+# =====================================================
 
-        return (
-            "Moderate (★★☆☆☆)",
-            "warning",
-        )
+def score_color(score: int) -> str:
 
-    if score >= 35:
+    if score >= 95:
+        return "#16A34A"
 
-        return (
-            "Weak (★☆☆☆☆)",
-            "warning",
-        )
+    elif score >= 85:
+        return "#22C55E"
 
-    return (
+    elif score >= 70:
+        return "#2563EB"
 
-        "Very Weak (☆☆☆☆☆)",
+    elif score >= 55:
+        return "#D97706"
 
-        "error",
+    elif score >= 35:
+        return "#EA580C"
 
-    )
+    return "#DC2626"
+
+# =====================================================
+# SCORE BREAKDOWN
+# =====================================================
+
+def score_breakdown(
+    password: str,
+    entropy: float,
+) -> dict:
+
+    report = password_health(password)
+
+    return {
+
+        "Length": len(password),
+
+        "Entropy": round(entropy, 2),
+
+        "Uppercase": report["uppercase"],
+
+        "Lowercase": report["lowercase"],
+
+        "Numbers": report["numbers"],
+
+        "Symbols": report["symbols"],
+
+        "Sequential": report["sequential"],
+
+        "Repeated": report["repeated"],
+
+        "Common": report["common"],
+
+        "Spaces": report["spaces"],
+
+    }
 
 # =====================================================
 # SHOW SCORE
@@ -204,7 +208,7 @@ def get_score_label(
 
 def show_score(
     password: str,
-    entropy: float
+    entropy: float,
 ) -> None:
     """
     Display password score.
@@ -215,39 +219,117 @@ def show_score(
         entropy,
     )
 
+    label, status = get_score_label(score)
+
     st.markdown(
         """
-### <i class="bi bi-award-fill"></i> Password Security Score
+### <i class="bi bi-award-fill"></i>
+Password Security Score
 """,
         unsafe_allow_html=True,
     )
 
     st.progress(score / MAX_SCORE)
 
-    st.metric(
+    col1, col2 = st.columns(2)
 
-        "Overall Score",
+    with col1:
 
-        f"{score}/{MAX_SCORE}",
+        st.metric(
+            "Overall Score",
+            f"{score}/{MAX_SCORE}",
+        )
 
-    )
+    with col2:
 
-    label, status = get_score_label(
-        score
-    )
+        st.metric(
+            "Rating",
+            label,
+        )
 
     if status == "success":
-
         st.success(label)
 
     elif status == "info":
-
         st.info(label)
 
     elif status == "warning":
-
         st.warning(label)
 
     else:
-
         st.error(label)
+
+    st.divider()
+
+    st.markdown(
+        """
+#### <i class="bi bi-bar-chart-fill"></i>
+Score Breakdown
+""",
+        unsafe_allow_html=True,
+    )
+
+    breakdown = score_breakdown(
+        password,
+        entropy,
+    )
+
+    for key, value in breakdown.items():
+
+        st.write(f"**{key}:** {value}")
+
+# =====================================================
+# SCORE REPORT
+# =====================================================
+
+def score_report(
+    password: str,
+    entropy: float,
+) -> dict:
+    """
+    Return complete score report.
+    """
+
+    score = calculate_score(
+        password,
+        entropy,
+    )
+
+    label, _ = get_score_label(score)
+
+    return {
+
+        "score": score,
+
+        "max_score": MAX_SCORE,
+
+        "rating": label,
+
+        "color": score_color(score),
+
+        "details": score_breakdown(
+            password,
+            entropy,
+        ),
+
+    }
+
+# =====================================================
+# SELF TEST
+# =====================================================
+
+if __name__ == "__main__":
+
+    password = "Mohd@1234"
+
+    entropy = 68.45
+
+    print("=" * 60)
+
+    print("Password Score Test")
+
+    print("=" * 60)
+
+    print(score_report(password, entropy))
+
+    print("=" * 60)

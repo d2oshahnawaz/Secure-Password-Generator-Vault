@@ -1,6 +1,6 @@
 # =====================================================
 # PASSWORD RECOMMENDATIONS
-# Version 4.0 Professional
+# Version 5.0 Professional
 # =====================================================
 
 from __future__ import annotations
@@ -18,26 +18,25 @@ from score import calculate_score
 
 MIN_PASSWORD_LENGTH = 12
 
-SPECIAL_CHARACTERS = "@#$%&*+"
+SPECIAL_CHARACTERS = "@#$%&*+!?_-"
 
 # =====================================================
-# GET RECOMMENDATIONS
+# GENERATE RECOMMENDATIONS
 # =====================================================
 
 def get_recommendations(
     password: str,
-    entropy: float
+    entropy: float,
 ) -> List[str]:
     """
-    Generate security recommendations
-    based on password health and score.
+    Generate password security recommendations.
     """
 
     report = password_health(password)
 
     score = calculate_score(
         password,
-        entropy
+        entropy,
     )
 
     recommendations: List[str] = []
@@ -49,29 +48,29 @@ def get_recommendations(
     if len(password) < MIN_PASSWORD_LENGTH:
 
         recommendations.append(
-            f"Increase the password length to at least {MIN_PASSWORD_LENGTH} characters."
+            f"Increase password length to at least {MIN_PASSWORD_LENGTH} characters."
         )
 
     # -------------------------------------------------
-    # Character Categories
+    # Character Types
     # -------------------------------------------------
 
     if not report["uppercase"]:
 
         recommendations.append(
-            "Add at least one uppercase letter (A-Z)."
+            "Add at least one uppercase letter."
         )
 
     if not report["lowercase"]:
 
         recommendations.append(
-            "Add at least one lowercase letter (a-z)."
+            "Add at least one lowercase letter."
         )
 
     if not report["numbers"]:
 
         recommendations.append(
-            "Include at least one numeric digit (0-9)."
+            "Include at least one numeric digit."
         )
 
     if not report["symbols"]:
@@ -105,23 +104,23 @@ def get_recommendations(
     if report["spaces"]:
 
         recommendations.append(
-            "Remove spaces from the password."
+            "Avoid using spaces in passwords."
         )
 
     # -------------------------------------------------
-    # Overall Assessment
+    # Overall Recommendation
     # -------------------------------------------------
 
     if score >= 95:
 
         recommendations.append(
-            "Excellent! Your password follows modern security best practices."
+            "Excellent! This password follows modern security best practices."
         )
 
     elif score >= 80:
 
         recommendations.append(
-            "Strong password. Minor improvements could make it even stronger."
+            "Strong password. Only minor improvements are possible."
         )
 
     elif score >= 60:
@@ -145,18 +144,33 @@ def get_recommendations(
 
 def show_recommendations(
     password: str,
-    entropy: float
+    entropy: float,
 ) -> None:
     """
     Display password recommendations.
     """
 
+    score = calculate_score(
+        password,
+        entropy,
+    )
+
     st.markdown(
         """
-### <i class="bi bi-lightbulb-fill"></i> Password Recommendations
+### <i class="bi bi-lightbulb-fill"></i>
+Password Recommendations
 """,
         unsafe_allow_html=True,
     )
+
+    st.metric(
+        "Security Score",
+        f"{score}/100",
+    )
+
+    st.progress(score / 100)
+
+    st.divider()
 
     recommendations = get_recommendations(
         password,
@@ -171,12 +185,46 @@ def show_recommendations(
 
         elif recommendation.startswith("Strong"):
 
-            st.info(recommendation)
+            st.success(recommendation)
 
         elif recommendation.startswith("Good"):
 
             st.info(recommendation)
 
+        elif recommendation.startswith("Weak"):
+
+            st.error(recommendation)
+
         else:
 
             st.warning(recommendation)
+
+    st.divider()
+
+    st.markdown(
+        """
+#### <i class="bi bi-check-circle-fill"></i>
+Password Security Tips
+""",
+        unsafe_allow_html=True,
+    )
+
+    tips = [
+
+        "Use a unique password for every account.",
+
+        "Enable Multi-Factor Authentication (MFA).",
+
+        "Store passwords securely in Password Vault.",
+
+        "Avoid personal information such as names or birthdays.",
+
+        "Update important passwords regularly.",
+
+        "Never reuse passwords across different websites.",
+
+    ]
+
+    for tip in tips:
+
+        st.info(tip)
